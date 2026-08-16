@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from lidenbrock.core.pipeline import sanitize_error as _sanitize_error
+from saknussemm.core.pipeline import sanitize_error as _sanitize_error
 
 # ---------------------------------------------------------------------------
 # Regex-based stripping

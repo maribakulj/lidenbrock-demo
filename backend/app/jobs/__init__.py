@@ -1,9 +1,9 @@
 """Backend's ``app.jobs`` namespace.
 
 In-place backend infrastructure only: ``store`` (job state + SSE fan-out),
-``runner`` (drives lidenbrock's ``CorrectionPipeline``), ``observers``,
+``runner`` (drives saknussemm's ``CorrectionPipeline``), ``observers``,
 and ``task_registry``. The correction engine itself lives in the
-``lidenbrock`` library; nothing here re-implements or shims it.
+``saknussemm`` library; nothing here re-implements or shims it.
 
 Intentionally empty at the package level so the module attributes
 (``app.jobs.runner``, ``app.jobs.store``, …) are resolved through

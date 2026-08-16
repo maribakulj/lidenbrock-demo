@@ -12,8 +12,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-from lidenbrock.formats.alto.parser import build_document_manifest, parse_alto_file
 from lxml import etree
+from saknussemm.formats.alto.parser import build_document_manifest, parse_alto_file
 
 from app.jobs.runner import JobRunner
 from app.jobs.store import JobStore
@@ -392,9 +392,9 @@ def test_fallback_on_invalid_json():
     """
     mock = MockProvider(invalid_json_times=99)
 
-    # Patch lidenbrock directly: the backend shim no longer re-exports
+    # Patch saknussemm directly: the backend shim no longer re-exports
     # the `asyncio` module attribute (Stage 3 audit remediation).
-    with patch("lidenbrock.core.pipeline.asyncio.sleep", new=AsyncMock(return_value=None)):
+    with patch("saknussemm.core.pipeline.asyncio.sleep", new=AsyncMock(return_value=None)):
         job_id, out_files, store = _run_job_directly(
             {SAMPLE_XML.name: SAMPLE_XML.read_bytes()},
             mock=mock,

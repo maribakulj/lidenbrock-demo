@@ -2,7 +2,7 @@
 
 These Pydantic models describe request/response payloads exchanged with
 the FastAPI server and the SSE stream. They are intentionally NOT in
-``lidenbrock.core.schemas`` because the pure correction pipeline doesn't
+``saknussemm.core.schemas`` because the pure correction pipeline doesn't
 speak HTTP — only the server does. See ARCHITECTURE.md §3.2.
 
 When the eventual `alto-server` package is extracted, this
@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from lidenbrock.core.schemas import ModelInfo, PipelineEventType
 from pydantic import BaseModel, Field
+from saknussemm.core.schemas import ModelInfo, PipelineEventType
 
 from app.schemas.job import JobStatus, Provider
 

@@ -40,7 +40,7 @@ jobs:
         run: ruff format --check .
 
   backend-types:
-    # Block on lidenbrock tests: the shims forward to it, so any breakage
+    # Block on saknussemm tests: the shims forward to it, so any breakage
     # there would surface as confusing mypy errors here.
     runs-on: ubuntu-latest
     # Wave-5 review — no job may idle toward the 6 h default.
@@ -51,8 +51,8 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - name: Install lidenbrock (editable, sibling package)
-        run: pip install 'lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main'
+      - name: Install saknussemm (editable, sibling package)
+        run: pip install 'saknussemm @ git+https://github.com/maribakulj/saknussemm@main'
       - name: Install backend dependencies
         working-directory: backend
         run: pip install -r requirements.txt -r requirements-dev.txt
@@ -61,7 +61,7 @@ jobs:
         run: mypy --explicit-package-bases app
 
   backend-tests:
-    # Block on lidenbrock tests so a flaky backend run doesn't mask a
+    # Block on saknussemm tests so a flaky backend run doesn't mask a
     # broken core package.
     runs-on: ubuntu-latest
     # Wave-5 review — no job may idle toward the 6 h default.
@@ -74,8 +74,8 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - name: Install lidenbrock (editable, sibling package)
-        run: pip install 'lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main'
+      - name: Install saknussemm (editable, sibling package)
+        run: pip install 'saknussemm @ git+https://github.com/maribakulj/saknussemm@main'
       - name: Install backend dependencies
         working-directory: backend
         run: pip install -r requirements.txt -r requirements-dev.txt
@@ -111,8 +111,8 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - name: Install lidenbrock (editable, sibling package)
-        run: pip install 'lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main'
+      - name: Install saknussemm (editable, sibling package)
+        run: pip install 'saknussemm @ git+https://github.com/maribakulj/saknussemm@main'
       - name: Install backend dependencies
         working-directory: backend
         run: pip install -r requirements.txt -r requirements-dev.txt
@@ -130,12 +130,12 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - name: Install lidenbrock + backend deps + security tools
-        # lidenbrock lives next door; install editable so backend imports
+      - name: Install saknussemm + backend deps + security tools
+        # saknussemm lives next door; install editable so backend imports
         # resolve. Audit the resolved environment after install
         # (pip-audit -r doesn't understand editable lines).
         run: |
-          pip install 'lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main'
+          pip install 'saknussemm @ git+https://github.com/maribakulj/saknussemm@main'
           pip install -r backend/requirements.txt
           pip install bandit[toml]==1.9.4 pip-audit==2.10.0
       - name: bandit (static analysis)
@@ -144,10 +144,10 @@ jobs:
       - name: pip-audit (dependency CVEs)
         # Audit from ``backend/requirements.txt`` rather than the
         # resolved env. The previous resolved-env approach tried to
-        # audit lidenbrock (editable sibling package, not on PyPI) and
+        # audit saknussemm (editable sibling package, not on PyPI) and
         # failed in ``--strict`` mode — ``--skip-editable`` still
         # surfaces the failure as a strict-mode collection error. The
-        # requirements file no longer contains editable lines (lidenbrock
+        # requirements file no longer contains editable lines (saknussemm
         # is installed separately upstream of this job), so the file-
         # based audit cleanly resolves and audits all backend deps,
         # transitive deps included, against the PyPI advisory DB.
@@ -216,8 +216,8 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Install lidenbrock (editable, sibling package)
-        run: pip install 'lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main'
+      - name: Install saknussemm (editable, sibling package)
+        run: pip install 'saknussemm @ git+https://github.com/maribakulj/saknussemm@main'
       - name: Install backend dependencies
         working-directory: backend
         run: pip install -r requirements.txt -r requirements-dev.txt
@@ -251,11 +251,11 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
       - name: Build root (HF Spaces) image
-        run: docker build -f Dockerfile -t lidenbrock-root:ci .
+        run: docker build -f Dockerfile -t saknussemm-root:ci .
       - name: Build backend image
-        run: docker build -f backend/Dockerfile -t lidenbrock-backend:ci .
+        run: docker build -f backend/Dockerfile -t saknussemm-backend:ci .
       - name: Build frontend image
-        run: docker build -f frontend/Dockerfile -t lidenbrock-frontend:ci ./frontend
+        run: docker build -f frontend/Dockerfile -t saknussemm-frontend:ci ./frontend
       - name: Smoke test the root image (health + REAL frontend)
         # Plan V1.3 — /health alone CANNOT catch the wrong-COPY
         # regression: the Dockerfile documents that /health stayed 200
@@ -264,7 +264,7 @@ jobs:
         # asset referenced by that HTML responds, and /health/ready
         # (which now includes the frontend check) is green.
         run: |
-          docker run -d --name lidenbrock-smoke -p 7860:7860 lidenbrock-root:ci
+          docker run -d --name saknussemm-smoke -p 7860:7860 saknussemm-root:ci
           ok=0
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:7860/health >/dev/null 2>&1; then
@@ -275,15 +275,15 @@ jobs:
           done
           if [ "$ok" -ne 1 ]; then
             echo "::error::root image did not serve /health within 60s"
-            docker logs lidenbrock-smoke || true
-            docker rm -f lidenbrock-smoke >/dev/null 2>&1 || true
+            docker logs saknussemm-smoke || true
+            docker rm -f saknussemm-smoke >/dev/null 2>&1 || true
             exit 1
           fi
 
           fail() {
             echo "::error::$1"
-            docker logs lidenbrock-smoke || true
-            docker rm -f lidenbrock-smoke >/dev/null 2>&1 || true
+            docker logs saknussemm-smoke || true
+            docker rm -f saknussemm-smoke >/dev/null 2>&1 || true
             exit 1
           }
 
@@ -308,4 +308,4 @@ jobs:
             || fail "/health/ready is not green"
 
           echo "root image serves /health, the SPA at /, its assets, and /health/ready"
-          docker rm -f lidenbrock-smoke >/dev/null 2>&1 || true
+          docker rm -f saknussemm-smoke >/dev/null 2>&1 || true

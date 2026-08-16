@@ -1,7 +1,7 @@
 # Stand-alone backend image used by docker-compose.
 #
 # Build context: repository root (see docker-compose.yml). The full
-# environment installs from the hash-locked file, then lidenbrock with
+# environment installs from the hash-locked file, then saknussemm with
 # --no-deps: its dependencies can only come from the verified lock.
 #
 # The library was a sibling directory here and was built into a wheel.
@@ -15,10 +15,10 @@ RUN pip install --no-cache-dir --require-hashes -r /app/backend/requirements-loc
 
 # `git` is absent from python:3.11-slim and a git+https install needs it:
 # installed, used and purged in one layer. All of this retires the day
-# lidenbrock is on PyPI and this becomes a version pin.
+# saknussemm is on PyPI and this becomes a version pin.
 RUN apt-get update && apt-get install -y --no-install-recommends git \
     && pip install --no-cache-dir --no-deps \
-       "lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main" \
+       "saknussemm @ git+https://github.com/maribakulj/saknussemm@main" \
     && apt-get purge -y git && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 

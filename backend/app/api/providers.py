@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
-from lidenbrock import sanitize_error
-from lidenbrock.core.protocols import (
+from saknussemm import sanitize_error
+from saknussemm.core.protocols import (
     ProviderPermanentError,
     ProviderTransientError,
 )

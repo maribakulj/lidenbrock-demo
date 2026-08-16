@@ -6,7 +6,7 @@ every link in a file they are only editing one paragraph of.
 
 This repository proved it the day it was created. Splitting the demo out
 of the library left five references behind, one of them a real markdown
-link in `docs/API.md` pointing at `../packages/lidenbrock/docs/` — a path
+link in `docs/API.md` pointing at `../packages/saknussemm/docs/` — a path
 that had never existed here. It rendered as a link, it read as a promise,
 and it went nowhere.
 

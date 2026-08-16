@@ -1,5 +1,5 @@
 ---
-title: Lidenbrock
+title: Saknussemm
 emoji: 📄
 colorFrom: blue
 colorTo: indigo
@@ -7,9 +7,9 @@ sdk: docker
 pinned: false
 ---
 
-# lidenbrock-demo
+# saknussemm-demo
 
-**A web demonstration of [`lidenbrock`](https://github.com/maribakulj/lidenbrock)** — the
+**A web demonstration of [`saknussemm`](https://github.com/maribakulj/saknussemm)** — the
 structure-safe post-OCR correction library for ALTO and PAGE XML.
 
 Upload an ALTO or PAGE file, watch the engine correct it line by line, and
@@ -47,7 +47,7 @@ in the library — or out of scope.
 
 ```bash
 # The library is not published yet, so it installs from git.
-pip install 'lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main'
+pip install 'saknussemm @ git+https://github.com/maribakulj/saknussemm@main'
 pip install -r backend/requirements.txt -r backend/requirements-dev.txt
 cd backend && uvicorn app.main:app --reload --port 8000
 

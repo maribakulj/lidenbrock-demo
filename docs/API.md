@@ -1,10 +1,10 @@
 # Backend HTTP API — the demo's, not the library's
 
-> **Scope.** This describes the FastAPI app that demonstrates `lidenbrock`
+> **Scope.** This describes the FastAPI app that demonstrates `saknussemm`
 > in a browser. It is not part of the published library and retires with
 > the demo: a library has no endpoints, no job store and no tokens. If you
-> are integrating `lidenbrock` into your own service, none of this is your
-> contract — [`docs/quickstart.md`](https://github.com/maribakulj/lidenbrock/blob/main/docs/quickstart.md)
+> are integrating `saknussemm` into your own service, none of this is your
+> contract — [`docs/quickstart.md`](https://github.com/maribakulj/saknussemm/blob/main/docs/quickstart.md)
 > is. Read on if you are running or modifying the demo.
 
 **Source of truth: the OpenAPI schema**, served live at `/docs` and
@@ -52,7 +52,7 @@ under `{JOB_STORAGE_DIR}/{job_id}/` (`input/`, `output/`, `images/`).
 
 ## SSE events
 
-Event names are defined by `lidenbrock.core.schemas.PipelineEventType`
+Event names are defined by `saknussemm.core.schemas.PipelineEventType`
 (the enum is the wire contract) and mirrored by
 `frontend/src/hooks/useJobStream.ts::EVENTS`;
 `backend/tests/test_sse_event_contract.py` fails CI on any drift.

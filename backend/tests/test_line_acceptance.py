@@ -6,11 +6,11 @@ import asyncio
 from pathlib import Path
 
 import pytest
-from lidenbrock.core.guards import (
+from saknussemm.core.guards import (
     check_adjacent_duplicates,
     check_line,
 )
-from lidenbrock.formats.alto.parser import build_document_manifest, parse_alto_file
+from saknussemm.formats.alto.parser import build_document_manifest, parse_alto_file
 
 from app.jobs.runner import JobRunner
 from app.jobs.store import JobStore

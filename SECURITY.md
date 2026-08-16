@@ -2,7 +2,7 @@
 
 > **Scope.** Everything below concerns the FastAPI + React **demo** that
 > ships in this repository — its deployment profiles, its CORS stance, its
-> capability tokens. The `lidenbrock` library has none of these: it opens
+> capability tokens. The `saknussemm` library has none of these: it opens
 > no socket, stores no credential and writes no file. A vulnerability in
 > the library is a correctness bug in a function; the threat model here is
 > the demo's. The demo retires when the library reaches its final form,
@@ -19,7 +19,7 @@ vulnerability) on this repository. Do not open a public issue for
 security reports. You should receive an acknowledgement within a week.
 There is no bug-bounty programme.
 
-Supported scope: the latest commit on `main`. The `lidenbrock` Python
+Supported scope: the latest commit on `main`. The `saknussemm` Python
 library and the demo application are maintained together; there are no
 long-term support branches.
 
@@ -66,7 +66,7 @@ no job ownership, no per-user quotas, no database and no durable
 persistence**, and is single-worker by design. Behind an SSO it can serve as a single-node internal pilot;
 it is not yet a durable institutional service. Those capabilities are
 open plan items, not shipped ones — see the library's plan,
-[`docs/PLAN.md`](https://github.com/maribakulj/lidenbrock/blob/main/docs/PLAN.md).
+[`docs/PLAN.md`](https://github.com/maribakulj/saknussemm/blob/main/docs/PLAN.md).
 
 Enforced by the app in this profile:
 

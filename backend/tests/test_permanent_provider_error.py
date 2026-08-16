@@ -21,8 +21,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from lidenbrock.core.protocols import ProviderPermanentError
-from lidenbrock.formats.alto.parser import build_document_manifest
+from saknussemm.core.protocols import ProviderPermanentError
+from saknussemm.formats.alto.parser import build_document_manifest
 
 from app.jobs.runner import JobRunner
 from app.jobs.store import JobStore

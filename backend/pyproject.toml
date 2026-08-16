@@ -83,10 +83,10 @@ check_untyped_defs = false
 ignore_missing_imports = true
 # `app.alto`, `app.jobs.chunk_planner/validator/line_acceptance/correction_pipeline`,
 # `app.protocols`, and `app.schemas` are re-export shims forwarding to
-# lidenbrock. mypy needs implicit_reexport=true to chase `from X import *`
-# through them without requiring an `__all__` in the lidenbrock modules.
+# saknussemm. mypy needs implicit_reexport=true to chase `from X import *`
+# through them without requiring an `__all__` in the saknussemm modules.
 implicit_reexport = true
-# Pure-domain modules now live in lidenbrock; the shims point there.
+# Pure-domain modules now live in saknussemm; the shims point there.
 [[tool.mypy.overrides]]
 module = [
     "app.jobs.runner",
@@ -127,7 +127,7 @@ pythonpath = ["."]
 markers = [
     "e2e: end-to-end scenarios against a real uvicorn backend + mock vendor",
 ]
-# Surface DeprecationWarnings so upstream API changes (lidenbrock, FastAPI,
+# Surface DeprecationWarnings so upstream API changes (saknussemm, FastAPI,
 # Pydantic, ...) reach us early instead of breaking suddenly. Switch to
 # "error" once the baseline is clean.
 
@@ -137,7 +137,7 @@ markers = [
 
 [tool.coverage.run]
 # Measure only app.* (HTTP + adapters living in backend). The pure
-# pipeline (lidenbrock.*) carries its own tests and coverage gate in
+# pipeline (saknussemm.*) carries its own tests and coverage gate in
 # the library's own repository (the algorithm tests live with the code),
 # so measuring it from the backend run would undercount it now that those
 # tests no longer live here.

@@ -1,10 +1,10 @@
 """Backend's port surface.
 
-Two ports come from the pure ``lidenbrock.core.protocols`` package:
+Two ports come from the pure ``saknussemm.core.protocols`` package:
 ``BaseProvider`` and ``PipelineObserver``. The other two are
 server-specific: ``JobStore`` (in-memory state + SSE registry,
 :mod:`app.protocols.job_store`; ARCHITECTURE.md §8.4 keeps it out of
-lidenbrock) and ``OutputWriter`` — since ADR-011 slice D-fin the engine
+saknussemm) and ``OutputWriter`` — since ADR-011 slice D-fin the engine
 never persists, so the persistence port belongs to the BACKEND: the
 JobRunner stages ``result.corrected_files`` + the §9 report through it
 and owns the commit/discard transaction.
@@ -16,7 +16,7 @@ Protocol is defined.
 
 from typing import Protocol, runtime_checkable
 
-from lidenbrock.core.protocols import (
+from saknussemm.core.protocols import (
     BaseProvider,
     PipelineObserver,
 )

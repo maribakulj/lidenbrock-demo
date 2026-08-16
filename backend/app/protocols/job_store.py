@@ -1,8 +1,8 @@
-"""JobStore Protocol — alto-server's concern, not lidenbrock's.
+"""JobStore Protocol — alto-server's concern, not saknussemm's.
 
 Defined in backend because it represents the persistence + SSE fan-out
 layer of the FastAPI server. ARCHITECTURE.md §8.4 keeps this Protocol
-out of lidenbrock to avoid coupling the pure pipeline to server-side
+out of saknussemm to avoid coupling the pure pipeline to server-side
 infrastructure. When the eventual `alto-server` package is extracted
 this file moves there.
 
