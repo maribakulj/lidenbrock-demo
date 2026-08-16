@@ -14,13 +14,11 @@ COPY backend/requirements-lock.txt /app/backend/requirements-lock.txt
 RUN pip install --no-cache-dir --require-hashes -r /app/backend/requirements-lock.txt
 
 # `git` is absent from python:3.11-slim and a git+https install needs it:
-# installed, used and purged in one layer. `#subdirectory=` because the
-# library is not at its repository's root — without it pip builds from the
-# root and reports "Multiple top-level packages discovered in a
-# flat-layout". All of this retires the day lidenbrock is on PyPI.
+# installed, used and purged in one layer. All of this retires the day
+# lidenbrock is on PyPI and this becomes a version pin.
 RUN apt-get update && apt-get install -y --no-install-recommends git \
     && pip install --no-cache-dir --no-deps \
-       "lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main#subdirectory=packages/lidenbrock" \
+       "lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main" \
     && apt-get purge -y git && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 

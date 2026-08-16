@@ -38,13 +38,9 @@ RUN pip install --no-cache-dir --require-hashes -r /app/backend/requirements-loc
 # carry a VCS client it will never use again. All three lines retire
 # together the day lidenbrock is on PyPI and this becomes a version pin.
 #
-# `#subdirectory=` because the library is not at its repository's root:
-# without it pip builds from the root and reports "Multiple top-level
-# packages discovered in a flat-layout". It goes away when that tree is
-# flattened.
 RUN apt-get update && apt-get install -y --no-install-recommends git \
     && pip install --no-cache-dir --no-deps \
-       "lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main#subdirectory=packages/lidenbrock" \
+       "lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main" \
     && apt-get purge -y git && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
