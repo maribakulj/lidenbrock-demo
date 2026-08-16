@@ -138,7 +138,7 @@ markers = [
 [tool.coverage.run]
 # Measure only app.* (HTTP + adapters living in backend). The pure
 # pipeline (lidenbrock.*) carries its own tests and coverage gate in
-# packages/lidenbrock (F11 — the algorithm tests were repatriated there),
+# the library's own repository (the algorithm tests live with the code),
 # so measuring it from the backend run would undercount it now that those
 # tests no longer live here.
 source = ["app"]

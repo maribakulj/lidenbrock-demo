@@ -4,7 +4,7 @@
 > in a browser. It is not part of the published library and retires with
 > the demo: a library has no endpoints, no job store and no tokens. If you
 > are integrating `lidenbrock` into your own service, none of this is your
-> contract — [`packages/lidenbrock/docs/quickstart.md`](../packages/lidenbrock/docs/quickstart.md)
+> contract — [`docs/quickstart.md`](https://github.com/maribakulj/lidenbrock/blob/main/docs/quickstart.md)
 > is. Read on if you are running or modifying the demo.
 
 **Source of truth: the OpenAPI schema**, served live at `/docs` and

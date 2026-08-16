@@ -2,7 +2,7 @@ services:
   backend:
     build:
       # Build context is the repo root so the Dockerfile can reach the
-      # sibling packages/lidenbrock directory.
+      # library, installed from git until it is published.
       context: .
       dockerfile: backend/Dockerfile
     ports:
