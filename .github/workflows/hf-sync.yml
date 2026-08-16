@@ -36,21 +36,34 @@ jobs:
       # and required for per-IP rate limiting to see real client IPs).
       - name: Push to HF Spaces
         env:
+          # ONE secret, because only one of these is secret. The account
+          # and the Space slug are public — the Space itself is public,
+          # and its URL is the address people are given. Storing them in
+          # the vault cost two setup steps for no protection, hid which
+          # Space this repository deploys to from anyone reading the
+          # workflow, and had GitHub mask them in the logs, so a failure
+          # printed *** where the useful part should have been.
+          #
+          # A fork cannot push anywhere with this: the token is what
+          # authorises, and a fork has none. The check below says so.
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_USERNAME: ${{ secrets.HF_USERNAME }}
-          HF_SPACE_NAME: ${{ secrets.HF_SPACE_NAME }}
+          HF_OWNER: Ma-Ri-Ba-Ku
+          HF_SPACE_NAME: alto-llm-corrector
         # HF Space is a downstream mirror — --force is intentional to
         # overwrite any auto-commits made by HF infrastructure.
-        # The token is provided via a git credential helper that reads
-        # from env vars, so it never appears in the remote URL (which
-        # would leak in `git` error output and process listings).
+        # The token goes through a git credential helper reading env
+        # vars, so it never appears in the remote URL (which would leak
+        # in `git` error output and process listings).
         run: |
           set -eu
-          : "${HF_USERNAME:?missing secret HF_USERNAME}"
-          : "${HF_TOKEN:?missing secret HF_TOKEN}"
-          : "${HF_SPACE_NAME:?missing secret HF_SPACE_NAME}"
+          : "${HF_TOKEN:?HF_TOKEN is not set. It is the only secret this
+          workflow needs: create a write token at
+          https://huggingface.co/settings/tokens and add it under
+          Settings > Secrets and variables > Actions. The Space it pushes
+          to is named in this file, not in the vault.}"
 
-          git remote add hf "https://huggingface.co/spaces/$HF_USERNAME/$HF_SPACE_NAME"
+          git remote add hf "https://huggingface.co/spaces/$HF_OWNER/$HF_SPACE_NAME"
           git config --local credential.helper \
-            '!f() { echo "username=${HF_USERNAME}"; echo "password=${HF_TOKEN}"; }; f'
+            '!f() { echo "username=${HF_OWNER}"; echo "password=${HF_TOKEN}"; }; f'
+          echo "pushing to https://huggingface.co/spaces/$HF_OWNER/$HF_SPACE_NAME"
           git push hf main --force
