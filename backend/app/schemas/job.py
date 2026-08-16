@@ -1,8 +1,8 @@
-"""Server-side job enums and record (moved out of lidenbrock by spec F12).
+"""Server-side job enums and record (moved out of saknussemm by spec F12).
 
 ``Provider``, ``JobStatus`` and ``JobManifest`` (with its ``images`` map)
 are backend concerns — the pure correction core does not enumerate LLM
-vendors or track a server job's lifecycle. They live here now; lidenbrock
+vendors or track a server job's lifecycle. They live here now; saknussemm
 keeps only the domain enums (``LineStatus``, ``ChunkGranularity``,
 ``HyphenRole``, ``PipelineEventType``).
 """
@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from enum import Enum
 
-from lidenbrock.core.schemas import CorrectionReport, DocumentManifest
 from pydantic import BaseModel, ConfigDict, Field
+from saknussemm.core.schemas import CorrectionReport, DocumentManifest
 
 
 class JobStatus(str, Enum):

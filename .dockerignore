@@ -28,7 +28,7 @@ frontend/dist
 **/.coverage
 **/coverage.xml
 
-# lidenbrock build/test artefacts (image needs the installed package,
+# saknussemm build/test artefacts (image needs the installed package,
 # not its tests or wheel cache)
 
 # Docker itself

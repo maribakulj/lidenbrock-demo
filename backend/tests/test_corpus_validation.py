@@ -17,14 +17,14 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from lidenbrock.core.hyphenation import (
+from lxml import etree
+from saknussemm.core.hyphenation import (
     ReconcileMetrics,
     classify_reconcile_outcome,
     reconcile_hyphen_pair,
 )
-from lidenbrock.formats.alto.parser import parse_alto_file
-from lidenbrock.formats.alto.rewriter import RewriterMetrics, rewrite_alto_file
-from lxml import etree
+from saknussemm.formats.alto.parser import parse_alto_file
+from saknussemm.formats.alto.rewriter import RewriterMetrics, rewrite_alto_file
 
 from app.schemas import HyphenRole
 

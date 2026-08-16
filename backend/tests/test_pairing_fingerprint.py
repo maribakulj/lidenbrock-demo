@@ -15,9 +15,9 @@ import re
 from pathlib import Path
 
 import pytest
-from lidenbrock.core.schemas import PairingPolicy
-from lidenbrock.formats.alto.parser import build_document_manifest
 from lxml import etree
+from saknussemm.core.schemas import PairingPolicy
+from saknussemm.formats.alto.parser import build_document_manifest
 
 from app.jobs.runner import JobRunner
 from app.jobs.store import JobStore
@@ -75,7 +75,7 @@ async def test_geometric_pairing_optout_changes_stamped_fingerprint(tmp_path: Pa
 
     # And the opt-out stamp must equal the library's fingerprint for that
     # exact policy (not merely "some other value").
-    from lidenbrock import CorrectionPipeline
+    from saknussemm import CorrectionPipeline
 
     class _NoopObserver:
         def on_event(self, event_type: str, payload: dict) -> None:

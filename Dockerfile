@@ -16,18 +16,18 @@ WORKDIR /app
 # Two-step Python install:
 #   1. the backend's own dependencies, from the hash-locked file — pip
 #      refuses anything whose hash does not match.
-#   2. lidenbrock, with --no-deps, so its dependencies can only come from
+#   2. saknussemm, with --no-deps, so its dependencies can only come from
 #      the verified lock above.
 #
 # The library used to be a sibling directory here, copied in and built as
 # a wheel so that packaging regressions failed the image build. That reason
 # retired with the split: it has its own repository and its own
-# `lidenbrock-build` job, which builds the wheel and smoke-installs it on
+# `saknussemm-build` job, which builds the wheel and smoke-installs it on
 # every supported Python. Rebuilding it here would test the same thing a
 # second time, in the wrong place, against a copy this repository does not
 # own.
 #
-# Installed from git while the library is unpublished. The day lidenbrock
+# Installed from git while the library is unpublished. The day saknussemm
 # is on PyPI this becomes a pinned version — one line, and the demo starts
 # consuming exactly what a user would install.
 COPY backend/requirements-lock.txt /app/backend/requirements-lock.txt
@@ -36,11 +36,11 @@ RUN pip install --no-cache-dir --require-hashes -r /app/backend/requirements-loc
 # `git` is not in python:3.11-slim, and a git+https install needs it.
 # Installed, used and purged in ONE layer so the runtime image does not
 # carry a VCS client it will never use again. All three lines retire
-# together the day lidenbrock is on PyPI and this becomes a version pin.
+# together the day saknussemm is on PyPI and this becomes a version pin.
 #
 RUN apt-get update && apt-get install -y --no-install-recommends git \
     && pip install --no-cache-dir --no-deps \
-       "lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main" \
+       "saknussemm @ git+https://github.com/maribakulj/saknussemm@main" \
     && apt-get purge -y git && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
