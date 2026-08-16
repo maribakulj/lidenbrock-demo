@@ -52,7 +52,7 @@ jobs:
           python-version: "3.11"
           cache: pip
       - name: Install lidenbrock (editable, sibling package)
-        run: pip install 'lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main'
+        run: pip install 'lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main#subdirectory=packages/lidenbrock'
       - name: Install backend dependencies
         working-directory: backend
         run: pip install -r requirements.txt -r requirements-dev.txt
@@ -75,7 +75,7 @@ jobs:
           python-version: "3.11"
           cache: pip
       - name: Install lidenbrock (editable, sibling package)
-        run: pip install 'lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main'
+        run: pip install 'lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main#subdirectory=packages/lidenbrock'
       - name: Install backend dependencies
         working-directory: backend
         run: pip install -r requirements.txt -r requirements-dev.txt
@@ -112,7 +112,7 @@ jobs:
           python-version: "3.11"
           cache: pip
       - name: Install lidenbrock (editable, sibling package)
-        run: pip install 'lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main'
+        run: pip install 'lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main#subdirectory=packages/lidenbrock'
       - name: Install backend dependencies
         working-directory: backend
         run: pip install -r requirements.txt -r requirements-dev.txt
@@ -135,7 +135,7 @@ jobs:
         # resolve. Audit the resolved environment after install
         # (pip-audit -r doesn't understand editable lines).
         run: |
-          pip install 'lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main'
+          pip install 'lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main#subdirectory=packages/lidenbrock'
           pip install -r backend/requirements.txt
           pip install bandit[toml]==1.9.4 pip-audit==2.10.0
       - name: bandit (static analysis)
@@ -217,7 +217,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Install lidenbrock (editable, sibling package)
-        run: pip install 'lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main'
+        run: pip install 'lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main#subdirectory=packages/lidenbrock'
       - name: Install backend dependencies
         working-directory: backend
         run: pip install -r requirements.txt -r requirements-dev.txt
