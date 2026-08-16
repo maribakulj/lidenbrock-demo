@@ -1,3 +1,12 @@
+---
+title: Lidenbrock
+emoji: 📄
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 # lidenbrock-demo
 
 **A web demonstration of [`lidenbrock`](https://github.com/maribakulj/lidenbrock)** — the
