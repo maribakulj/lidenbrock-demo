@@ -65,7 +65,8 @@ proxy** — and nothing more. The app itself still has **no user accounts,
 no job ownership, no per-user quotas, no database and no durable
 persistence**, and is single-worker by design. Behind an SSO it can serve as a single-node internal pilot;
 it is not yet a durable institutional service. Those capabilities are
-open plan items, not shipped ones — see `docs/PLAN.md`.
+open plan items, not shipped ones — see the library's plan,
+[`docs/PLAN.md`](https://github.com/maribakulj/lidenbrock/blob/main/docs/PLAN.md).
 
 Enforced by the app in this profile:
 

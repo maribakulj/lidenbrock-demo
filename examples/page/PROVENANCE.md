@@ -5,7 +5,8 @@ PAGE/ALTO de la même page, vérité corrigée, `¬`) et **NewsEye-FR**
 (`newseye-fr/`, presse en colonnes — la mise en page la plus complexe :
 ReadingOrder multi-colonnes, densité de césures, OCR brut réel).
 
-Corpus de non-régression pour le support **PAGE XML** (SPECS_LIB_V2 §6.2,
+Corpus de non-régression pour le support **PAGE XML** (spec de la
+bibliothèque, §6.2,
 v1.1) et les **tests de parité inter-formats** (§6.3). Équivalent PAGE du
 corpus ALTO BnF (`examples/X0000002.xml`) : imprimés français, même
 provenance Gallica/BnF.
