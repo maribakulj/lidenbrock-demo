@@ -30,10 +30,6 @@ frontend/dist
 
 # lidenbrock build/test artefacts (image needs the installed package,
 # not its tests or wheel cache)
-packages/lidenbrock/tests
-packages/lidenbrock/dist
-packages/lidenbrock/build
-packages/lidenbrock/*.egg-info
 
 # Docker itself
 Dockerfile

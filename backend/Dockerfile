@@ -1,20 +1,28 @@
 # Stand-alone backend image used by docker-compose.
 #
-# Build context: repository root (see docker-compose.yml). Plan V4.3 —
-# the full environment installs from the hash-locked file, then the
-# lidenbrock WHEEL installs with --no-deps (its dependencies can only
-# come from the verified lock; the image ships the artefact users would
-# get from PyPI, not an editable checkout).
+# Build context: repository root (see docker-compose.yml). The full
+# environment installs from the hash-locked file, then lidenbrock with
+# --no-deps: its dependencies can only come from the verified lock.
+#
+# The library was a sibling directory here and was built into a wheel.
+# It left this repository on 2026-08-16, so it installs the way any
+# consumer installs it — which is also the only way that keeps working.
 FROM python:3.11-slim@sha256:e031123e3d85762b141ad1cbc56452ba69c6e722ebf2f042cc0dc86c47c0d8b3
 WORKDIR /app
 
 COPY backend/requirements-lock.txt /app/backend/requirements-lock.txt
 RUN pip install --no-cache-dir --require-hashes -r /app/backend/requirements-lock.txt
 
-COPY packages/lidenbrock /app/packages/lidenbrock
-RUN pip wheel --no-cache-dir --no-deps -w /tmp/wheels /app/packages/lidenbrock \
-    && pip install --no-cache-dir --no-deps /tmp/wheels/lidenbrock-*.whl \
-    && rm -rf /tmp/wheels
+# `git` is absent from python:3.11-slim and a git+https install needs it:
+# installed, used and purged in one layer. `#subdirectory=` because the
+# library is not at its repository's root — without it pip builds from the
+# root and reports "Multiple top-level packages discovered in a
+# flat-layout". All of this retires the day lidenbrock is on PyPI.
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+    && pip install --no-cache-dir --no-deps \
+       "lidenbrock @ git+https://github.com/maribakulj/lidenbrock@main#subdirectory=packages/lidenbrock" \
+    && apt-get purge -y git && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY backend/app/ /app/backend/app/
 
