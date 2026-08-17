@@ -10,6 +10,7 @@ pipeline.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import os
 import time
@@ -26,7 +27,7 @@ from saknussemm import (
 )
 from saknussemm.core.events import ReconcileStats
 from saknussemm.core.protocols import ProviderPermanentError
-from saknussemm.core.schemas import PairingPolicy
+from saknussemm.core.schemas import GuardConfig, ImageAsset, ModelCapabilities, PairingPolicy
 
 from app.jobs.events import JobEventType
 from app.jobs.observers import CompositeObserver, JobStoreObserver, LoggingObserver
@@ -34,6 +35,67 @@ from app.protocols import BaseProvider, JobStore, OutputWriter
 from app.schemas import DocumentManifest, JobStatus
 
 logger = logging.getLogger(__name__)
+
+
+def page_image_assets(
+    document_manifest: DocumentManifest, images_by_source: dict[str, Path]
+) -> dict[str, ImageAsset]:
+    """``{page_id: ImageAsset}`` from the demo's per-SOURCE-FILE image map.
+
+    The two models disagree and the disagreement matters. This backend stores
+    one image per uploaded source file, keyed by its stem; the library wants one
+    per *physical page*, and ``require_page_images`` says why in as many words:
+    "never one per source file: a multipage XML has as many scans as pages, and
+    flattening them to a single per-file ref sent the producer the wrong image
+    for every page but the first".
+
+    So a source file carrying more than one page is **refused**, not flattened.
+    A wrong scan produces a confident correction of a line that is not on it,
+    and nothing downstream can see that — the projection invariant compares the
+    artefact to the decisions the artefact was built from.
+    """
+    assets: dict[str, ImageAsset] = {}
+    pages_per_source: dict[str, int] = {}
+    for page in document_manifest.pages:
+        pages_per_source[page.source_file] = pages_per_source.get(page.source_file, 0) + 1
+
+    for page in document_manifest.pages:
+        stem = Path(page.source_file).stem.lower()
+        image_path = images_by_source.get(stem)
+        if image_path is None:
+            continue
+        if pages_per_source[page.source_file] > 1:
+            raise ValueError(
+                f"{page.source_file!r} carries {pages_per_source[page.source_file]} "
+                "pages but only one image was uploaded for it. A vision run needs "
+                "one scan per physical page; sending the same image for every page "
+                "would correct each line against the wrong scan. Upload one file "
+                "per page, or run this document without vision."
+            )
+        assets[page.page_id] = ImageAsset(
+            page_id=page.page_id,
+            uri=str(image_path),
+            sha256=hashlib.sha256(image_path.read_bytes()).hexdigest(),
+            media_type=_media_type_for(image_path),
+        )
+    return assets
+
+
+def _media_type_for(path: Path) -> str:
+    """Decoded from the bytes, not guessed from the extension.
+
+    A ``.jpg`` that is really a PNG makes the vendor reject the data URI, and
+    the schema field documents itself as "determined from the bytes rather than
+    guessed from the extension".
+    """
+    header = path.read_bytes()[:12]
+    if header.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if header[:2] == b"\xff\xd8":
+        return "image/jpeg"
+    if header[:4] in (b"II*\x00", b"MM\x00*"):
+        return "image/tiff"
+    return "application/octet-stream"
 
 
 def _default_timeout_from_env() -> int:
@@ -91,6 +153,7 @@ class JobRunner:
         source_files: dict[str, Path],
         provider: BaseProvider | None = None,
         pairing_policy: PairingPolicy | None = None,
+        page_images: dict[str, ImageAsset] | None = None,
         timeout_seconds: int = 1800,
         should_abort: Callable[[], bool] | None = None,
     ) -> None:
@@ -110,6 +173,10 @@ class JobRunner:
         `should_abort`: Plan V2.2 — cooperative cancellation probe,
         forwarded to the pipeline (polled between pages and chunks).
         When it trips, the job lands in CANCELLED with no output promoted.
+        `page_images`: page_id → scan, from ``page_image_assets()``. Present
+        means a VISION run: the producer becomes ``VisionEditProducer`` and the
+        guards become ``GuardConfig.vision()``. Absent (the default) keeps the
+        historical text path byte for byte.
         """
         if provider is None:
             from app.providers import get_provider
@@ -132,6 +199,7 @@ class JobRunner:
                     output_writer=output_writer,
                     source_files=source_files,
                     pairing_policy=pairing_policy,
+                    page_images=page_images,
                     should_abort=should_abort,
                 ),
                 timeout=timeout,
@@ -318,9 +386,14 @@ class JobRunner:
         output_writer: OutputWriter,
         source_files: dict[str, Path],
         pairing_policy: PairingPolicy | None = None,
+        page_images: dict[str, ImageAsset] | None = None,
         should_abort: Callable[[], bool] | None = None,
     ) -> CorrectionResult:
-        """Drive the pure pipeline and persist its counters back."""
+        """Drive the pure pipeline and persist its counters back.
+
+        `page_images`: page_id → scan. Present means a VISION run — the
+        producer changes, and so does the guard config.
+        """
         self.job_store.update_job(job_id, status=JobStatus.STARTED)
         self.job_store.emit(job_id, JobEventType.STARTED, {"job_id": job_id})
 
@@ -338,25 +411,64 @@ class JobRunner:
         # §5.1 resorption — credentials go into the producer (via the
         # for_provider convenience), never into run(): the pipeline surface
         # carries no api_key anywhere.
-        pipeline = CorrectionPipeline.for_provider(
-            provider,
-            api_key=api_key,
-            model=model,
-            provider_name=provider_name,
-            observer=CompositeObserver(
-                [JobStoreObserver(self.job_store, job_id), LoggingObserver()]
-            ),
-            # Provenance parity — the pipeline hashes this into the §11
-            # config fingerprint. Passing the job's actual policy (default
-            # or geometric_pairing opt-out) keeps the stamped fingerprint
-            # honest; omitting it silently reverted to DEFAULT_PAIRING_POLICY.
-            pairing_policy=pairing_policy,
-        )
+        observer = CompositeObserver([JobStoreObserver(self.job_store, job_id), LoggingObserver()])
+        if page_images:
+            # Vision run. `for_provider` cannot serve it: it always builds the
+            # TEXT producer, around a client whose seam carries no images on
+            # purpose. So the producer is assembled here, with the three things
+            # a VLM run needs and a text run must not have.
+            from saknussemm.integrations.vision import VisionEditProducer
+
+            max_images = getattr(provider, "MAX_IMAGES_PER_CALL", None)
+            producer = VisionEditProducer(
+                provider=provider,
+                api_key=api_key,
+                model=model,
+                # `max_images` is what makes core/batching.py split a chunk.
+                # Without it the engine sends every line's crop in one call and
+                # the vendor refuses the request outright.
+                capabilities=ModelCapabilities(
+                    text=True,
+                    vision=True,
+                    structured_output=True,
+                    max_images=max_images,
+                ),
+            )
+            pipeline = CorrectionPipeline(
+                producer=producer,
+                observer=observer,
+                pairing_policy=pairing_policy,
+                # A VLM reads the image, so a CORRECT reading of a badly
+                # garbled line diverges from the OCR text further than the
+                # text-tuned guard tolerates (0.35 → 0.15). Running vision
+                # under the text config refuses the model's best work: measured
+                # 18 refusals out of 20 lines, every one
+                # `too_different_from_source`.
+                guard_config=GuardConfig.vision(),
+            )
+        else:
+            # §5.1 resorption — credentials go into the producer (via the
+            # for_provider convenience), never into run(): the pipeline surface
+            # carries no api_key anywhere.
+            pipeline = CorrectionPipeline.for_provider(
+                provider,
+                api_key=api_key,
+                model=model,
+                provider_name=provider_name,
+                observer=observer,
+                # Provenance parity — the pipeline hashes this into the §11
+                # config fingerprint. Passing the job's actual policy (default
+                # or geometric_pairing opt-out) keeps the stamped fingerprint
+                # honest; omitting it silently reverted to
+                # DEFAULT_PAIRING_POLICY.
+                pairing_policy=pairing_policy,
+            )
         # `run_id` is saknussemm's generic identifier; we feed it the
         # server-side `job_id` so trace.json correlates with the API.
         result = await pipeline.run(
             document_manifest=document_manifest,
             source_files=source_files,
+            page_images=page_images,
             run_id=job_id,
             # Plan V2.2 — the cancel endpoint's event, polled by the
             # pipeline between pages and chunks.
