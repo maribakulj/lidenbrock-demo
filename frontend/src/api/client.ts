@@ -1,4 +1,12 @@
-import type { DiffData, JobStatusData, LayoutData, ModelInfo, Provider, TraceData } from '../types'
+import type {
+  DiffData,
+  JobStatusData,
+  LayoutData,
+  LineReview,
+  ModelInfo,
+  Provider,
+  TraceData,
+} from '../types'
 
 // proxied via vite → http://localhost:8000
 const BASE = ''
@@ -203,4 +211,36 @@ export async function downloadJob(jobId: string): Promise<void> {
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
+}
+
+// ---------------------------------------------------------------------------
+// Human review — the only place ground truth can come from
+// ---------------------------------------------------------------------------
+//
+// These corpora ship no truth: Gallica's `text.txt` is the same OCR layer as
+// its ALTO, so nothing on disk says whether a correction was right or a
+// refusal justified. A reader in front of the scan is the source, and these
+// two calls are how that reading is kept instead of evaporating.
+
+export function fetchReviews(jobId: string): Promise<{ reviews: LineReview[] }> {
+  return apiGet<{ reviews: LineReview[] }>(
+    `${BASE}/api/jobs/${jobId}/reviews`,
+    'Failed to fetch reviews',
+  )
+}
+
+export async function putReviews(jobId: string, reviews: LineReview[]): Promise<LineReview[]> {
+  const response = await fetch(`${BASE}/api/jobs/${jobId}/reviews`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...tokenHeaders() },
+    body: JSON.stringify({ reviews }),
+  })
+  if (!response.ok) {
+    // The server explains a rejected review in prose (an empty transcription
+    // says so by name); surfacing that beats a status code the reader cannot act on.
+    const detail = await response.text().catch(() => '')
+    throw new Error(detail || `Failed to save review (${response.status})`)
+  }
+  const body = (await response.json()) as { reviews: LineReview[] }
+  return body.reviews
 }

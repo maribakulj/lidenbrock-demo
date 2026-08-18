@@ -1,5 +1,10 @@
-import { useCallback, useRef, useState } from 'react'
-import type { LayoutData, LayoutPage } from '../types'
+import { useCallback, useEffect, useRef, useState } from 'react'
+
+import { fetchReviews } from '../api/client'
+import { lineKey, type LineKey } from '../lib/lineKey'
+import { FAMILY, verdictFamily, type VerdictFamily } from '../lib/verdicts'
+import { ReviewPanel } from './ReviewPanel'
+import type { LayoutData, LayoutLine, LayoutPage, LineReview } from '../types'
 
 // ---------------------------------------------------------------------------
 // SVG colour constants (inline — Tailwind classes don't apply to SVG attrs)
@@ -14,54 +19,7 @@ const C = {
   hyphenBar: '#f59e0b', // amber-500
 } as const
 
-// ---------------------------------------------------------------------------
-// Verdict palette — what the engine decided, and why
-// ---------------------------------------------------------------------------
-//
-// Three families, because a reviewer scans for three different things and
-// should not have to read a legend to tell them apart:
-//
-//   kept      the correction survived every guard
-//   refused   something was proposed and a guard declined it — the cases
-//             worth a human eye, since each is either a caught hallucination
-//             or a good correction thrown away
-//   silent    nothing was proposed, or nothing changed; no judgement to make
-//
-// Colours are the proof-reader's two pencils: blue marks what stands, red
-// marks what was struck out. Amber sits between them for a line the engine
-// never got an answer for.
 
-export type VerdictFamily = 'kept' | 'refused' | 'silent'
-
-const REFUSAL_CODES = new Set([
-  'too_different_from_source',
-  'closer_to_previous_line',
-  'closer_to_next_line',
-  'absorbs_previous_line',
-  'absorbs_next_line',
-  'hyphen_pair_fallback',
-  'boundary_migration_forward',
-  'boundary_migration_backward',
-  'adjacent_duplicate_detected',
-  'adjacent_duplicate_pair_atomicity',
-  'orphan_hyphen_completed',
-  'hyphen_unit_fallback',
-])
-
-export function verdictFamily(line: {
-  verdict: string | null
-  modified: boolean
-}): VerdictFamily {
-  if (line.verdict && REFUSAL_CODES.has(line.verdict)) return 'refused'
-  if (line.verdict === 'all_attempts_exhausted') return 'silent'
-  return line.modified ? 'kept' : 'silent'
-}
-
-const FAMILY = {
-  kept: { stroke: '#1d4ed8', fill: 'rgba(29,78,216,0.18)', label: 'Retenue' },
-  refused: { stroke: '#b91c1c', fill: 'rgba(185,28,28,0.20)', label: 'Refusée' },
-  silent: { stroke: '#a1a1aa', fill: 'rgba(161,161,170,0.10)', label: 'Sans objet' },
-} as const
 
 // ---------------------------------------------------------------------------
 // SVGOverlay — the annotation layer (blocks + lines + text)
@@ -245,14 +203,7 @@ interface PagePanelProps {
   onSelect: (lineId: string) => void
 }
 
-function PagePanel({
-  page,
-  side,
-  overlayOpacity,
-  active,
-  selectedId,
-  onSelect,
-}: PagePanelProps) {
+function PagePanel({ page, side, overlayOpacity, active, selectedId, onSelect }: PagePanelProps) {
   const { blocks } = page
   const W = page.page_width || blocks.reduce((m, b) => Math.max(m, b.hpos + b.width), 0)
   const H = page.page_height || blocks.reduce((m, b) => Math.max(m, b.vpos + b.height), 0)
@@ -311,17 +262,43 @@ function PagePanel({
 
 interface LayoutViewerProps {
   data: LayoutData
+  /**
+   * When given, clicking a line opens the judgement panel and the reader's
+   * verdict is persisted against this job. Omit it and the view stays
+   * read-only — which is what the demo does before a run has a report.
+   */
+  jobId?: string
 }
 
-export function LayoutViewer({ data }: LayoutViewerProps) {
+export function LayoutViewer({ data, jobId }: LayoutViewerProps) {
   const [pageIdx, setPageIdx] = useState(0)
   const [overlayOpacity, setOverlayOpacity] = useState(0.85)
   // All three families on by default: a reviewer opening the page should see
   // what the run did before deciding what to hunt for.
   const [active, setActive] = useState<ReadonlySet<VerdictFamily>>(
-    new Set<VerdictFamily>(['kept', 'refused', 'silent'])
+    new Set<VerdictFamily>(['kept', 'refused', 'silent']),
   )
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [reviews, setReviews] = useState<Map<LineKey, LineReview>>(new Map())
+
+  // Judgements already made travel with the job, so a reader can stop and
+  // come back without losing the page they had worked through.
+  useEffect(() => {
+    if (!jobId) return
+    let cancelled = false
+    fetchReviews(jobId)
+      .then(({ reviews: rows }) => {
+        if (cancelled) return
+        setReviews(new Map(rows.map((r) => [lineKey(r.page_id, r.line_id), r])))
+      })
+      .catch(() => {
+        // A review list that will not load must not take the layout with it:
+        // looking at the page is still worth doing.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [jobId])
 
   const toggleFamily = useCallback((family: VerdictFamily) => {
     setActive((current) => {
@@ -362,6 +339,9 @@ export function LayoutViewer({ data }: LayoutViewerProps) {
   }
 
   const currentPage = data.pages[pageIdx] ?? data.pages[0]
+  const selectedLine: LayoutLine | null = selectedId
+    ? (currentPage?.blocks.flatMap((b) => b.lines).find((l) => l.line_id === selectedId) ?? null)
+    : null
   const hasImage = !!currentPage.image_url
 
   return (
@@ -474,6 +454,29 @@ export function LayoutViewer({ data }: LayoutViewerProps) {
           />
         </div>
       </div>
+
+      {/* Judgement panel — only with a job to persist against, and only once
+          a line is selected. A reviewer who cannot record a verdict produces
+          an impression; one who can produces the ground truth these corpora
+          do not ship. */}
+      {jobId && selectedLine && (
+        <div className="px-4 py-3 border-t border-slate-700/40">
+          <ReviewPanel
+            jobId={jobId}
+            pageId={currentPage.page_id}
+            line={selectedLine}
+            existing={reviews.get(lineKey(currentPage.page_id, selectedLine.line_id)) ?? null}
+            onSaved={(review) =>
+              setReviews((current) => {
+                const next = new Map(current)
+                next.set(lineKey(review.page_id, review.line_id), review)
+                return next
+              })
+            }
+            onClose={() => setSelectedId(null)}
+          />
+        </div>
+      )}
 
       {/* Legend */}
       <div className="px-4 py-2.5 border-t border-slate-700/40 flex items-center gap-6 flex-wrap">
