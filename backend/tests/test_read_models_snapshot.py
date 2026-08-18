@@ -60,6 +60,15 @@ _LAYOUT_LINE_KEYS = {
     "corrected_text",
     "modified",
     "hyphen_role",
+    # Added for human review: geometry alone cannot tell a reviewer WHY a line
+    # kept its OCR text. "Nothing was proposed", "a guard refused a
+    # hallucination" and "a hyphen pair could not reconcile" look identical on
+    # the page and demand different judgements. `None` when the job has no
+    # report yet — the layout still renders.
+    "verdict",
+    "verdict_detail",
+    "proposed_text",
+    "proposal_declined",
 }
 
 

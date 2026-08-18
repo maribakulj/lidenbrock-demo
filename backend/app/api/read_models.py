@@ -11,7 +11,7 @@ job, guard the HTTP preconditions, and delegate here.
 
 from __future__ import annotations
 
-from app.schemas import DocumentManifest, HyphenRole
+from app.schemas import CorrectionReport, DocumentManifest, HyphenRole
 
 
 def build_diff(job_id: str, document_manifest: DocumentManifest) -> dict:
@@ -69,13 +69,38 @@ def build_layout(
     job_id: str,
     document_manifest: DocumentManifest,
     images: dict[str, str],
+    report: CorrectionReport | None = None,
 ) -> dict:
     """Structural layout: blocks + lines with ALTO coordinates, per page.
 
     Page dimensions are derived from line coordinates when the source Page
     element omits WIDTH/HEIGHT. ``images`` maps source_file → image filename;
     a matching entry becomes the page's ``image_url``.
+
+    ``report`` adds, per line, **what the engine decided and why**: the verdict
+    code and the text the producer actually proposed. Without it a reviewer
+    sees that a line was left alone but not whether that was because nothing
+    was proposed, because a guard refused a hallucination, or because a hyphen
+    pair could not reconcile — three situations that look identical in the
+    geometry and demand different judgements. Optional so a job whose report
+    is not yet written still renders its layout.
     """
+    verdicts: dict[tuple[str, str], dict] = {}
+    if report is not None:
+        for trace in report.lines:
+            reason = trace.decision.reason
+            proposed = trace.proposal.output_text if trace.proposal else None
+            verdicts[(trace.page_id, trace.line_id)] = {
+                "verdict": reason.code if reason is not None else trace.decision.status,
+                "verdict_detail": reason.detail if reason is not None else None,
+                "proposed_text": proposed,
+                # A proposal the engine declined is the reviewer's most
+                # interesting case: something was on offer and was refused.
+                "proposal_declined": bool(
+                    reason is not None and proposed is not None and proposed != trace.source_text
+                ),
+            }
+
     pages_out = []
     for page in document_manifest.pages:
         line_by_id = {lm.line_id: lm for lm in page.lines}
@@ -99,6 +124,15 @@ def build_layout(
                         "corrected_text": corrected,
                         "modified": corrected != lm.ocr_text,
                         "hyphen_role": lm.hyphen_role.value,
+                        **verdicts.get(
+                            (page.page_id, lm.line_id),
+                            {
+                                "verdict": None,
+                                "verdict_detail": None,
+                                "proposed_text": None,
+                                "proposal_declined": False,
+                            },
+                        ),
                     }
                 )
             blocks_out.append(

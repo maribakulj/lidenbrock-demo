@@ -24,6 +24,7 @@ from app.api.health import router as health_router
 from app.api.jobs import router as jobs_router
 from app.api.providers import router as providers_router
 from app.api.rate_limit import limiter
+from app.api.review import router as review_router
 from app.api.upload_guard import UploadAdmissionMiddleware, UploadSizeLimitMiddleware
 from app.frontend_static import INDEX_HTML as _INDEX_HTML
 from app.frontend_static import STATIC_DIR as _STATIC_DIR
@@ -278,6 +279,9 @@ def create_app() -> FastAPI:
     # ------------------------------------------------------------------
     app.include_router(providers_router, prefix="/api/providers", tags=["providers"])
     app.include_router(jobs_router, prefix="/api/jobs", tags=["jobs"])
+    # Human review sits on the same job paths and carries its own prefix,
+    # so it registers without one here.
+    app.include_router(review_router)
 
     # ------------------------------------------------------------------
     # Static frontend (HF Spaces single-container mode)

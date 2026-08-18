@@ -778,7 +778,9 @@ async def get_job_layout(job: JobManifest = Depends(get_completed_job)) -> dict:
     if job.document_manifest is None:
         raise HTTPException(status_code=500, detail="Job has no document_manifest.")
     # Wave-3 review — same offload rationale as /diff.
-    data = await asyncio.to_thread(build_layout, job.job_id, job.document_manifest, job.images)
+    data = await asyncio.to_thread(
+        build_layout, job.job_id, job.document_manifest, job.images, job.report
+    )
     # Plan V2.4 — <img> cannot set headers: append a short-lived,
     # images-scoped signed credential to each URL (this response is
     # itself token-gated, so only the job owner receives them).

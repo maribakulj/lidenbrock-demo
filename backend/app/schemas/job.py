@@ -89,6 +89,12 @@ class JobManifest(BaseModel):
     # job keeps (the former parallel ``line_traces`` dict was redundant —
     # nothing read it — and is gone).
     report: CorrectionReport | None = None
+    #: Human review, keyed ``"<page_id> <line_id>"`` — see `app.api.review`.
+    #: Keyed on the PAIR because a line id repeats across files (`ADR-001`);
+    #: the bare id would merge two documents' judgements the first time a job
+    #: carries more than one ALTO. Untyped here so the schema layer stays
+    #: free of the API layer's models.
+    reviews: dict[str, dict] = Field(default_factory=dict)
 
 
 __all__ = ["TERMINAL_SUCCESS_STATES", "JobManifest", "JobStatus", "Provider"]

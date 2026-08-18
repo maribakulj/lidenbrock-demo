@@ -139,6 +139,7 @@ class JobStore:
         fallbacks: int | None = None,
         duration_seconds: float | None = None,
         error: str | None = None,
+        reviews: dict[str, dict] | None = None,
         images: dict[str, str] | None = None,
         report: CorrectionReport | None = None,
         token_hash: str | None = None,
@@ -172,6 +173,8 @@ class JobStore:
                 job.duration_seconds = duration_seconds
             if error is not None:
                 job.error = error
+            if reviews is not None:
+                job.reviews = reviews
             if images is not None:
                 job.images = images
             if report is not None:

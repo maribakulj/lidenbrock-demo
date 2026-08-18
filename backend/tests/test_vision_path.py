@@ -25,15 +25,28 @@ from app.jobs.runner import _media_type_for, page_image_assets
 from app.providers.mistral_multimodal import MistralMultimodalProvider
 from app.schemas import DocumentManifest
 
-# A one-pixel JPEG and a one-pixel PNG, so the sniffing test has real bytes.
-_JPEG = (
-    bytes.fromhex(
-        "ffd8ffe000104a46494600010100000100010000ffdb004300080606070606080607070709090809"
-    )
-    + b"\xff\xd9"
-)
-_PNG = bytes.fromhex("89504e470d0a1a0a") + b"rest of a png"
-_TIFF = b"II*\x00" + b"rest of a tiff"
+
+def _encoded(fmt: str, size: tuple[int, int] = (40, 12)) -> bytes:
+    """A real, decodable image.
+
+    Hand-rolled header bytes were enough while the code only sniffed the magic
+    number; they stopped being enough when ``page_image_assets`` began
+    DECODING the scan to derive the XML-to-pixel scale. A fixture that cannot
+    be opened then fails for a reason that has nothing to do with what is
+    under test.
+    """
+    import io
+
+    from PIL import Image
+
+    buffer = io.BytesIO()
+    Image.new("RGB", size, (255, 255, 255)).save(buffer, format=fmt)
+    return buffer.getvalue()
+
+
+_JPEG = _encoded("JPEG")
+_PNG = _encoded("PNG")
+_TIFF = _encoded("TIFF")
 
 
 def test_the_provider_satisfies_the_librarys_multimodal_protocol() -> None:

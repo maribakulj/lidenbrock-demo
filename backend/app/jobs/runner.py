@@ -10,7 +10,6 @@ pipeline.
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import logging
 import os
 import time
@@ -27,7 +26,14 @@ from saknussemm import (
 )
 from saknussemm.core.events import ReconcileStats
 from saknussemm.core.protocols import ProviderPermanentError
-from saknussemm.core.schemas import GuardConfig, ImageAsset, ModelCapabilities, PairingPolicy
+from saknussemm.core.schemas import (
+    GuardConfig,
+    ImageAsset,
+    ImageTransform,
+    ModelCapabilities,
+    PairingPolicy,
+)
+from saknussemm.integrations.vision import build_image_asset
 
 from app.jobs.events import JobEventType
 from app.jobs.observers import CompositeObserver, JobStoreObserver, LoggingObserver
@@ -72,13 +78,38 @@ def page_image_assets(
                 "would correct each line against the wrong scan. Upload one file "
                 "per page, or run this document without vision."
             )
-        assets[page.page_id] = ImageAsset(
-            page_id=page.page_id,
-            uri=str(image_path),
-            sha256=hashlib.sha256(image_path.read_bytes()).hexdigest(),
-            media_type=_media_type_for(image_path),
-        )
+        asset = build_image_asset(page_id=page.page_id, path=image_path)
+        assets[page.page_id] = asset.model_copy(update={"transform": _transform_for(page, asset)})
     return assets
+
+
+def _transform_for(page, asset: ImageAsset) -> ImageTransform | None:
+    """Map the ALTO/PAGE coordinate space onto the scan's pixels.
+
+    **Not optional, and the reason is a measured near-miss.** A digital
+    library serves a downscaled derivative — Gallica's IIIF ``!1600,1600``
+    gives a 1193x1600 JPEG for a page whose ALTO measures 6802x9121, a factor
+    of **0.1754**. With no transform the crop is taken at scale 1.0, so a line
+    at ``hpos=4798`` is cropped from an image 1193 pixels wide: off the
+    canvas, and every crop comes back blank or from the wrong place.
+
+    Nothing downstream notices. The VLM is handed a picture of nothing, says
+    something plausible about the OCR text it was also given, and the guards
+    judge a proposal made without the evidence they think it was made with.
+
+    Derived rather than configured: the page declares its own dimensions and
+    the decoded scan declares its pixels, so the ratio is available without
+    asking a caller for a DPI it may not know. Returns ``None`` when either
+    side is missing — a wrong scale is worse than a declared unknown.
+    """
+    if not (asset.pixel_width and asset.pixel_height):
+        return None
+    if not (page.page_width and page.page_height):
+        return None
+    return ImageTransform(
+        scale_x=asset.pixel_width / page.page_width,
+        scale_y=asset.pixel_height / page.page_height,
+    )
 
 
 def _media_type_for(path: Path) -> str:
