@@ -19,10 +19,10 @@ function line(over: Partial<LayoutLine> = {}): LayoutLine {
     corrected_text: 'texte corrigé',
     modified: false,
     hyphen_role: 'none',
-  verdict: null,
-  verdict_detail: null,
-  proposed_text: null,
-  proposal_declined: false,
+    verdict: null,
+    verdict_detail: null,
+    proposed_text: null,
+    proposal_declined: false,
     ...over,
   }
 }
@@ -173,12 +173,10 @@ describe('LayoutViewer', () => {
           line({ line_id: 'refused', verdict: 'too_different_from_source' }),
         ]),
       ],
-      { image_url: '/img/p1.jpg' }
+      { image_url: '/img/p1.jpg' },
     )
     const { container } = render(<LayoutViewer data={data([p])} />)
-    const fills = Array.from(container.querySelectorAll('rect')).map((r) =>
-      r.getAttribute('fill')
-    )
+    const fills = Array.from(container.querySelectorAll('rect')).map((r) => r.getAttribute('fill'))
     expect(fills).toContain('rgba(29,78,216,0.18)')
     expect(fills).toContain('rgba(185,28,28,0.20)')
   })
@@ -186,10 +184,9 @@ describe('LayoutViewer', () => {
   it('the verdict filter dims a family instead of removing it', () => {
     // Dimming, not hiding: a line that copied its neighbour only reads as
     // wrong NEXT TO that neighbour, so the context has to stay on the page.
-    const p = page(
-      [block([line({ line_id: 'refused', verdict: 'too_different_from_source' })])],
-      { image_url: '/img/p1.jpg' }
-    )
+    const p = page([block([line({ line_id: 'refused', verdict: 'too_different_from_source' })])], {
+      image_url: '/img/p1.jpg',
+    })
     const { container } = render(<LayoutViewer data={data([p])} />)
     const before = container.querySelectorAll('rect').length
 
@@ -197,7 +194,7 @@ describe('LayoutViewer', () => {
 
     expect(container.querySelectorAll('rect').length).toBe(before)
     const dimmed = Array.from(container.querySelectorAll('g')).some(
-      (g) => g.getAttribute('opacity') === '0.16'
+      (g) => g.getAttribute('opacity') === '0.16',
     )
     expect(dimmed).toBe(true)
   })

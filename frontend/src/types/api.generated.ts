@@ -289,6 +289,32 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/jobs/{job_id}/reviews': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get Reviews */
+    get: operations['get_reviews_api_jobs__job_id__reviews_get']
+    /**
+     * Put Reviews
+     * @description Record or replace judgements on lines of this job.
+     *
+     *     Idempotent per line: sending the same line twice replaces its review
+     *     rather than appending, so a reader who changes their mind is not fighting
+     *     an append-only log. The timestamp is stamped here rather than trusted
+     *     from the client — a review's date is a fact about the server.
+     */
+    put: operations['put_reviews_api_jobs__job_id__reviews_put']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
 export type webhooks = Record<string, never>
 export interface components {
@@ -397,6 +423,23 @@ export interface components {
       /** Error */
       error?: string | null
     }
+    /**
+     * LineReview
+     * @description One reader's judgement on one line.
+     */
+    LineReview: {
+      /** Page Id */
+      page_id: string
+      /** Line Id */
+      line_id: string
+      verdict: components['schemas']['ReviewVerdict']
+      /** Transcription */
+      transcription?: string | null
+      /** Note */
+      note?: string | null
+      /** Reviewed At */
+      reviewed_at?: string | null
+    }
     /** ListModelsRequest */
     ListModelsRequest: {
       provider: components['schemas']['Provider']
@@ -432,6 +475,27 @@ export interface components {
      * @enum {string}
      */
     Provider: 'openai' | 'anthropic' | 'mistral' | 'google'
+    /**
+     * ReviewBatch
+     * @description Reviews arrive in batches: a reader works through a page, not a line.
+     */
+    ReviewBatch: {
+      /** Reviews */
+      reviews: components['schemas']['LineReview'][]
+    }
+    /**
+     * ReviewVerdict
+     * @description What the reader concluded about the engine's decision on this line.
+     * @enum {string}
+     */
+    ReviewVerdict: 'accepted' | 'refused' | 'transcribed'
+    /** ReviewsResponse */
+    ReviewsResponse: {
+      /** Job Id */
+      job_id: string
+      /** Reviews */
+      reviews: components['schemas']['LineReview'][]
+    }
     /** ValidationError */
     ValidationError: {
       /** Location */
@@ -824,6 +888,72 @@ export interface operations {
         }
         content: {
           'application/json': unknown
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_reviews_api_jobs__job_id__reviews_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        job_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ReviewsResponse']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  put_reviews_api_jobs__job_id__reviews_put: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        job_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ReviewBatch']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ReviewsResponse']
         }
       }
       /** @description Validation Error */

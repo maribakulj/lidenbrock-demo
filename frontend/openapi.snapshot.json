@@ -504,6 +504,95 @@
           }
         }
       }
+    },
+    "/api/jobs/{job_id}/reviews": {
+      "put": {
+        "tags": ["review"],
+        "summary": "Put Reviews",
+        "description": "Record or replace judgements on lines of this job.\n\nIdempotent per line: sending the same line twice replaces its review\nrather than appending, so a reader who changes their mind is not fighting\nan append-only log. The timestamp is stamped here rather than trusted\nfrom the client \u2014 a review's date is a fact about the server.",
+        "operationId": "put_reviews_api_jobs__job_id__reviews_put",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewBatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["review"],
+        "summary": "Get Reviews",
+        "operationId": "get_reviews_api_jobs__job_id__reviews_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -686,6 +775,64 @@
         "required": ["job_id", "status"],
         "title": "JobStatusResponse"
       },
+      "LineReview": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Page Id"
+          },
+          "line_id": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Line Id"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/ReviewVerdict"
+          },
+          "transcription": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcription"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          }
+        },
+        "type": "object",
+        "required": ["page_id", "line_id", "verdict"],
+        "title": "LineReview",
+        "description": "One reader's judgement on one line."
+      },
       "ListModelsRequest": {
         "properties": {
           "provider": {
@@ -754,6 +901,46 @@
         "enum": ["openai", "anthropic", "mistral", "google"],
         "title": "Provider",
         "description": "Identifier for an LLM vendor. Each value maps to one ``BaseProvider``."
+      },
+      "ReviewBatch": {
+        "properties": {
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/LineReview"
+            },
+            "type": "array",
+            "maxItems": 2000,
+            "title": "Reviews"
+          }
+        },
+        "type": "object",
+        "required": ["reviews"],
+        "title": "ReviewBatch",
+        "description": "Reviews arrive in batches: a reader works through a page, not a line."
+      },
+      "ReviewVerdict": {
+        "type": "string",
+        "enum": ["accepted", "refused", "transcribed"],
+        "title": "ReviewVerdict",
+        "description": "What the reader concluded about the engine's decision on this line."
+      },
+      "ReviewsResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/LineReview"
+            },
+            "type": "array",
+            "title": "Reviews"
+          }
+        },
+        "type": "object",
+        "required": ["job_id", "reviews"],
+        "title": "ReviewsResponse"
       },
       "ValidationError": {
         "properties": {

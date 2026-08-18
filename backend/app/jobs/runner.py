@@ -31,8 +31,11 @@ from saknussemm.core.schemas import (
     ImageAsset,
     ImageTransform,
     ModelCapabilities,
+    PageImage,
+    PageManifest,
     PairingPolicy,
 )
+from saknussemm.errors import ConfigurationError
 from saknussemm.integrations.vision import build_image_asset
 
 from app.jobs.events import JobEventType
@@ -83,7 +86,7 @@ def page_image_assets(
     return assets
 
 
-def _transform_for(page, asset: ImageAsset) -> ImageTransform | None:
+def _transform_for(page: PageManifest, asset: ImageAsset) -> ImageTransform | None:
     """Map the ALTO/PAGE coordinate space onto the scan's pixels.
 
     **Not optional, and the reason is a measured near-miss.** A digital
@@ -184,7 +187,7 @@ class JobRunner:
         source_files: dict[str, Path],
         provider: BaseProvider | None = None,
         pairing_policy: PairingPolicy | None = None,
-        page_images: dict[str, ImageAsset] | None = None,
+        page_images: dict[str, PageImage] | None = None,
         timeout_seconds: int = 1800,
         should_abort: Callable[[], bool] | None = None,
     ) -> None:
@@ -417,7 +420,7 @@ class JobRunner:
         output_writer: OutputWriter,
         source_files: dict[str, Path],
         pairing_policy: PairingPolicy | None = None,
-        page_images: dict[str, ImageAsset] | None = None,
+        page_images: dict[str, PageImage] | None = None,
         should_abort: Callable[[], bool] | None = None,
     ) -> CorrectionResult:
         """Drive the pure pipeline and persist its counters back.
@@ -448,8 +451,22 @@ class JobRunner:
             # TEXT producer, around a client whose seam carries no images on
             # purpose. So the producer is assembled here, with the three things
             # a VLM run needs and a text run must not have.
-            from saknussemm.integrations.vision import VisionEditProducer
+            from saknussemm.integrations.vision import (
+                MultimodalStructuredClient,
+                VisionEditProducer,
+            )
 
+            # Checked, not assumed. A text provider here would fail at the
+            # first call, deep inside a run, with a message about a missing
+            # method rather than about the job being misconfigured — and the
+            # run would already have spent its first chunk getting there.
+            if not isinstance(provider, MultimodalStructuredClient):
+                raise ConfigurationError(
+                    f"a vision run needs a multimodal provider, and "
+                    f"{type(provider).__name__} implements the text seam only. "
+                    "Pass MistralMultimodalProvider, or run this job without "
+                    "page images."
+                )
             max_images = getattr(provider, "MAX_IMAGES_PER_CALL", None)
             producer = VisionEditProducer(
                 provider=provider,
