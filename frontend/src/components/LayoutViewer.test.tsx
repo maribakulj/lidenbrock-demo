@@ -19,6 +19,10 @@ function line(over: Partial<LayoutLine> = {}): LayoutLine {
     corrected_text: 'texte corrigé',
     modified: false,
     hyphen_role: 'none',
+  verdict: null,
+  verdict_detail: null,
+  proposed_text: null,
+  proposal_declined: false,
     ...over,
   }
 }
@@ -151,9 +155,51 @@ describe('LayoutViewer', () => {
     // Column labels flag scan mode.
     expect(screen.getByText(/ocr source \(scan\)/i)).toBeInTheDocument()
 
-    // Overlay mode: line background is the semi-opaque readability rect.
+    // Overlay mode: the line rect is coloured by VERDICT, not by "did the
+    // text change". A modified line with no guard verdict is `kept` — blue,
+    // the proof-reader's pencil for what stands.
     const rects = Array.from(container.querySelectorAll('rect'))
-    expect(rects.some((r) => r.getAttribute('fill') === 'rgba(251,191,36,0.70)')).toBe(true)
+    expect(rects.some((r) => r.getAttribute('fill') === 'rgba(29,78,216,0.18)')).toBe(true)
+  })
+
+  it('colours a refused line differently from a kept one', () => {
+    // The distinction the whole review view exists for: a line that kept its
+    // OCR text because a guard REFUSED a proposal is not the same case as a
+    // line nobody proposed anything for, and a reviewer must see which.
+    const p = page(
+      [
+        block([
+          line({ line_id: 'kept', modified: true }),
+          line({ line_id: 'refused', verdict: 'too_different_from_source' }),
+        ]),
+      ],
+      { image_url: '/img/p1.jpg' }
+    )
+    const { container } = render(<LayoutViewer data={data([p])} />)
+    const fills = Array.from(container.querySelectorAll('rect')).map((r) =>
+      r.getAttribute('fill')
+    )
+    expect(fills).toContain('rgba(29,78,216,0.18)')
+    expect(fills).toContain('rgba(185,28,28,0.20)')
+  })
+
+  it('the verdict filter dims a family instead of removing it', () => {
+    // Dimming, not hiding: a line that copied its neighbour only reads as
+    // wrong NEXT TO that neighbour, so the context has to stay on the page.
+    const p = page(
+      [block([line({ line_id: 'refused', verdict: 'too_different_from_source' })])],
+      { image_url: '/img/p1.jpg' }
+    )
+    const { container } = render(<LayoutViewer data={data([p])} />)
+    const before = container.querySelectorAll('rect').length
+
+    fireEvent.click(screen.getByRole('button', { name: /refusée/i }))
+
+    expect(container.querySelectorAll('rect').length).toBe(before)
+    const dimmed = Array.from(container.querySelectorAll('g')).some(
+      (g) => g.getAttribute('opacity') === '0.16'
+    )
+    expect(dimmed).toBe(true)
   })
 
   it('synchronises scroll positions between the two panels', () => {
