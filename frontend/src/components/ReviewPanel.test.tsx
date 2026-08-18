@@ -141,3 +141,46 @@ describe('ReviewPanel', () => {
     expect(screen.getByDisplayValue('le scan dit ENFANTS')).toBeInTheDocument()
   })
 })
+
+describe('ReviewPanel — le scan en pleine résolution', () => {
+  it('shows the line from IIIF when a service is known', () => {
+    // Judging a word from a downscaled preview means judging ~13 pixels of
+    // newspaper line. The region request costs nothing to store and returns
+    // the scan's native pixels.
+    render(
+      <ReviewPanel
+        jobId="job-1"
+        pageId="PAG_1"
+        line={line({ hpos: 1000, vpos: 2000, width: 500, height: 100 })}
+        existing={null}
+        iiifService="https://example.org/iiif/f1"
+        onSaved={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    const img = screen.getByRole('img', { name: /ligne TL000323 sur le scan/i })
+    expect(img).toHaveAttribute(
+      'src',
+      'https://example.org/iiif/f1/995,1980,510,140/max/0/default.jpg',
+    )
+  })
+
+  it('falls back to text alone when no service is known', () => {
+    // The ALTO does not carry a IIIF identifier, so its absence is normal and
+    // must not cost the reviewer the rest of the panel.
+    render(
+      <ReviewPanel
+        jobId="job-1"
+        pageId="PAG_1"
+        line={line()}
+        existing={null}
+        onSaved={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    // The source and the retained text are identical on a refused line, so
+    // both nodes carry it — the point is that the panel still renders.
+    expect(screen.getAllByText(/1,500 ETANTS/).length).toBeGreaterThan(0)
+  })
+})

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { fetchReviews } from '../api/client'
+import { looksLikeService } from '../lib/iiif'
 import { lineKey, type LineKey } from '../lib/lineKey'
 import { FAMILY, verdictFamily, type VerdictFamily } from '../lib/verdicts'
 import { ReviewPanel } from './ReviewPanel'
@@ -18,8 +19,6 @@ const C = {
   rectChanged: 'rgba(253,230,138,0.25)',
   hyphenBar: '#f59e0b', // amber-500
 } as const
-
-
 
 // ---------------------------------------------------------------------------
 // SVGOverlay — the annotation layer (blocks + lines + text)
@@ -280,6 +279,14 @@ export function LayoutViewer({ data, jobId }: LayoutViewerProps) {
   )
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [reviews, setReviews] = useState<Map<LineKey, LineReview>>(new Map())
+  // Remembered per browser, not per job: a reviewer working through one
+  // volume pastes the service once and every page of it resolves. The ALTO
+  // does not carry the identifier, so guessing it would be inventing
+  // provenance — the reader supplies it or the panel shows text only.
+  const [iiifService, setIiifService] = useState<string>(
+    () => globalThis.localStorage?.getItem('saknussemm.iiif') ?? '',
+  )
+  const iiifUsable = looksLikeService(iiifService)
 
   // Judgements already made travel with the job, so a reader can stop and
   // come back without losing the page they had worked through.
@@ -400,6 +407,31 @@ export function LayoutViewer({ data, jobId }: LayoutViewerProps) {
             })}
           </div>
 
+          {/* IIIF service — full-resolution line crops, nothing stored */}
+          <label className="flex items-center gap-2">
+            <span className="font-mono text-[10px] text-slate-500 uppercase tracking-wider whitespace-nowrap">
+              IIIF
+            </span>
+            <input
+              type="url"
+              value={iiifService}
+              placeholder="https://…/iiif/image/v3/ark:/12148/…/f1"
+              onChange={(e) => {
+                setIiifService(e.target.value)
+                globalThis.localStorage?.setItem('saknussemm.iiif', e.target.value)
+              }}
+              className={`font-mono text-[11px] bg-slate-900 border rounded px-2 py-1 w-56
+                          text-slate-200 focus:outline-none focus:border-amber-500 ${
+                            iiifService && !iiifUsable ? 'border-red-500' : 'border-slate-600'
+                          }`}
+            />
+            {iiifService && !iiifUsable && (
+              <span className="font-mono text-[10px] text-red-400">
+                base du service, pas une image
+              </span>
+            )}
+          </label>
+
           {/* Page selector */}
           {data.pages.length > 1 && (
             <select
@@ -466,6 +498,7 @@ export function LayoutViewer({ data, jobId }: LayoutViewerProps) {
             pageId={currentPage.page_id}
             line={selectedLine}
             existing={reviews.get(lineKey(currentPage.page_id, selectedLine.line_id)) ?? null}
+            iiifService={iiifUsable ? iiifService : null}
             onSaved={(review) =>
               setReviews((current) => {
                 const next = new Map(current)

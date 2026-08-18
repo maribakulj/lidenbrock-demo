@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { putReviews } from '../api/client'
+import { lineRegionUrl } from '../lib/iiif'
 import type { LayoutLine, LineReview, ReviewVerdict } from '../types'
 
 /**
@@ -24,6 +25,13 @@ interface ReviewPanelProps {
   line: LayoutLine
   /** The reader's existing judgement on this line, if any. */
   existing: LineReview | null
+  /**
+   * IIIF Image API service base for this page, when the reader has one.
+   * With it, the line is shown at the scan's NATIVE resolution and nothing is
+   * stored — the alternative is judging a word from a downscaled preview,
+   * which on a newspaper line is roughly 13 pixels tall.
+   */
+  iiifService?: string | null
   onSaved: (review: LineReview) => void
   onClose: () => void
 }
@@ -34,7 +42,15 @@ const VERDICT_LABEL: Record<ReviewVerdict, string> = {
   transcribed: 'Voici ce que je lis',
 }
 
-export function ReviewPanel({ jobId, pageId, line, existing, onSaved, onClose }: ReviewPanelProps) {
+export function ReviewPanel({
+  jobId,
+  pageId,
+  line,
+  existing,
+  iiifService,
+  onSaved,
+  onClose,
+}: ReviewPanelProps) {
   const [transcription, setTranscription] = useState(existing?.transcription ?? '')
   const [note, setNote] = useState(existing?.note ?? '')
   const [saving, setSaving] = useState(false)
@@ -92,6 +108,19 @@ export function ReviewPanel({ jobId, pageId, line, existing, onSaved, onClose }:
           fermer
         </button>
       </header>
+
+      {iiifService && (
+        <figure className="m-0">
+          <img
+            src={lineRegionUrl(iiifService, line)}
+            alt={`Ligne ${line.line_id} sur le scan`}
+            className="w-full rounded border border-slate-600 bg-white"
+          />
+          <figcaption className="font-mono text-[10px] text-slate-500 mt-1">
+            résolution native, servie par IIIF — rien n'est stocké
+          </figcaption>
+        </figure>
+      )}
 
       <dl className="flex flex-col gap-2 text-xs">
         <div>
