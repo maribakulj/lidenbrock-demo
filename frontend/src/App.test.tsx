@@ -16,6 +16,11 @@ vi.mock('./api/client', () => ({
   createJob: vi.fn(),
   fetchDiff: vi.fn(),
   fetchLayout: vi.fn(),
+  // The layout view loads existing judgements on mount; without this the
+  // whole component tree fails to render and every case here reports a
+  // mock error instead of what it was testing.
+  fetchReviews: vi.fn().mockResolvedValue({ reviews: [] }),
+  putReviews: vi.fn().mockResolvedValue([]),
   fetchTrace: vi.fn(),
   listModels: vi.fn(),
   downloadJob: vi.fn(),

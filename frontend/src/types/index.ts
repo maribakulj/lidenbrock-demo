@@ -211,6 +211,31 @@ export interface LayoutLine {
   corrected_text: string
   modified: boolean
   hyphen_role: 'none' | 'HypPart1' | 'HypPart2'
+  /**
+   * Why the line ended up as it did — the guard code, or the decision status
+   * when no guard spoke. Geometry alone cannot distinguish "nothing was
+   * proposed" from "a hallucination was refused", and a reviewer needs to.
+   * `null` when the job carries no report yet.
+   */
+  verdict: string | null
+  verdict_detail: string | null
+  /** What the producer actually returned, before the engine judged it. */
+  proposed_text: string | null
+  /** A proposal was on the table and the engine declined it — the case worth reading. */
+  proposal_declined: boolean
+}
+
+/** How a reader graded the engine on one line. */
+export type ReviewVerdict = 'accepted' | 'refused' | 'transcribed'
+
+export interface LineReview {
+  page_id: string
+  line_id: string
+  verdict: ReviewVerdict
+  /** What the reader read on the scan. Required for `transcribed`. */
+  transcription?: string | null
+  note?: string | null
+  reviewed_at?: string | null
 }
 
 export interface LayoutBlock {

@@ -1,5 +1,11 @@
-import { useCallback, useRef, useState } from 'react'
-import type { LayoutData, LayoutPage } from '../types'
+import { useCallback, useEffect, useRef, useState } from 'react'
+
+import { fetchReviews } from '../api/client'
+import { looksLikeService } from '../lib/iiif'
+import { lineKey, type LineKey } from '../lib/lineKey'
+import { FAMILY, verdictFamily, type VerdictFamily } from '../lib/verdicts'
+import { ReviewPanel } from './ReviewPanel'
+import type { LayoutData, LayoutLine, LayoutPage, LineReview } from '../types'
 
 // ---------------------------------------------------------------------------
 // SVG colour constants (inline — Tailwind classes don't apply to SVG attrs)
@@ -27,9 +33,25 @@ interface SVGOverlayProps {
   opacity: number
   /** When true, a white page rect is drawn first (standalone mode). */
   withBackground: boolean
+  /**
+   * Verdict families to keep at full strength. The others are DIMMED, not
+   * hidden: a line that copied its neighbour only reads as wrong next to
+   * that neighbour, so removing the context removes the evidence.
+   */
+  active: ReadonlySet<VerdictFamily>
+  selectedId: string | null
+  onSelect: (lineId: string) => void
 }
 
-function SVGOverlay({ page, side, opacity, withBackground }: SVGOverlayProps) {
+function SVGOverlay({
+  page,
+  side,
+  opacity,
+  withBackground,
+  active,
+  selectedId,
+  onSelect,
+}: SVGOverlayProps) {
   const { blocks } = page
   const W = page.page_width || blocks.reduce((m, b) => Math.max(m, b.hpos + b.width), 0)
   const H = page.page_height || blocks.reduce((m, b) => Math.max(m, b.vpos + b.height), 0)
@@ -68,13 +90,22 @@ function SVGOverlay({ page, side, opacity, withBackground }: SVGOverlayProps) {
             {block.lines.map((line) => {
               const displayText = side === 'ocr' ? line.ocr_text : line.corrected_text
               const hasHyphen = line.hyphen_role !== 'none'
+              const family = verdictFamily(line)
+              const isSelected = selectedId === line.line_id
+              // Dimmed, not removed — see the `active` prop.
+              const dim = active.has(family) ? 1 : 0.16
 
               if (withBackground) {
                 // SVG-only mode: coloured text on white page
                 const fontSize = Math.max(line.height * 0.7, 1)
                 const textY = line.vpos + line.height * 0.75
                 return (
-                  <g key={line.line_id}>
+                  <g
+                    key={line.line_id}
+                    opacity={dim}
+                    onClick={() => onSelect(line.line_id)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     {line.modified && (
                       <rect
                         x={line.hpos}
@@ -111,15 +142,20 @@ function SVGOverlay({ page, side, opacity, withBackground }: SVGOverlayProps) {
                 const fontSize = Math.max(line.height * 0.72, 1)
                 const textY = line.vpos + line.height * 0.78
                 return (
-                  <g key={line.line_id}>
+                  <g
+                    key={line.line_id}
+                    opacity={dim}
+                    onClick={() => onSelect(line.line_id)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <rect
                       x={line.hpos}
                       y={line.vpos}
                       width={line.width}
                       height={line.height}
-                      fill={line.modified ? 'rgba(251,191,36,0.70)' : 'rgba(255,255,255,0.78)'}
-                      stroke={line.modified ? 'rgba(217,119,6,0.90)' : 'rgba(148,163,184,0.40)'}
-                      strokeWidth={2}
+                      fill={FAMILY[family].fill}
+                      stroke={FAMILY[family].stroke}
+                      strokeWidth={isSelected ? 6 : 2}
                     />
                     {hasHyphen && (
                       <rect
@@ -161,9 +197,12 @@ interface PagePanelProps {
   page: LayoutPage
   side: 'ocr' | 'corrected'
   overlayOpacity: number
+  active: ReadonlySet<VerdictFamily>
+  selectedId: string | null
+  onSelect: (lineId: string) => void
 }
 
-function PagePanel({ page, side, overlayOpacity }: PagePanelProps) {
+function PagePanel({ page, side, overlayOpacity, active, selectedId, onSelect }: PagePanelProps) {
   const { blocks } = page
   const W = page.page_width || blocks.reduce((m, b) => Math.max(m, b.hpos + b.width), 0)
   const H = page.page_height || blocks.reduce((m, b) => Math.max(m, b.vpos + b.height), 0)
@@ -189,13 +228,31 @@ function PagePanel({ page, side, overlayOpacity }: PagePanelProps) {
             }}
           />
         )}
-        <SVGOverlay page={page} side={side} opacity={overlayOpacity} withBackground={!W || !H} />
+        <SVGOverlay
+          page={page}
+          side={side}
+          opacity={overlayOpacity}
+          withBackground={!W || !H}
+          active={active}
+          selectedId={selectedId}
+          onSelect={onSelect}
+        />
       </div>
     )
   }
 
   // No image: SVG on white background — opacity still controlled by slider
-  return <SVGOverlay page={page} side={side} opacity={overlayOpacity} withBackground={true} />
+  return (
+    <SVGOverlay
+      page={page}
+      side={side}
+      opacity={overlayOpacity}
+      withBackground={true}
+      active={active}
+      selectedId={selectedId}
+      onSelect={onSelect}
+    />
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -204,11 +261,61 @@ function PagePanel({ page, side, overlayOpacity }: PagePanelProps) {
 
 interface LayoutViewerProps {
   data: LayoutData
+  /**
+   * When given, clicking a line opens the judgement panel and the reader's
+   * verdict is persisted against this job. Omit it and the view stays
+   * read-only — which is what the demo does before a run has a report.
+   */
+  jobId?: string
 }
 
-export function LayoutViewer({ data }: LayoutViewerProps) {
+export function LayoutViewer({ data, jobId }: LayoutViewerProps) {
   const [pageIdx, setPageIdx] = useState(0)
   const [overlayOpacity, setOverlayOpacity] = useState(0.85)
+  // All three families on by default: a reviewer opening the page should see
+  // what the run did before deciding what to hunt for.
+  const [active, setActive] = useState<ReadonlySet<VerdictFamily>>(
+    new Set<VerdictFamily>(['kept', 'refused', 'silent']),
+  )
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [reviews, setReviews] = useState<Map<LineKey, LineReview>>(new Map())
+  // Remembered per browser, not per job: a reviewer working through one
+  // volume pastes the service once and every page of it resolves. The ALTO
+  // does not carry the identifier, so guessing it would be inventing
+  // provenance — the reader supplies it or the panel shows text only.
+  const [iiifService, setIiifService] = useState<string>(
+    () => globalThis.localStorage?.getItem('saknussemm.iiif') ?? '',
+  )
+  const iiifUsable = looksLikeService(iiifService)
+
+  // Judgements already made travel with the job, so a reader can stop and
+  // come back without losing the page they had worked through.
+  useEffect(() => {
+    if (!jobId) return
+    let cancelled = false
+    fetchReviews(jobId)
+      .then(({ reviews: rows }) => {
+        if (cancelled) return
+        setReviews(new Map(rows.map((r) => [lineKey(r.page_id, r.line_id), r])))
+      })
+      .catch(() => {
+        // A review list that will not load must not take the layout with it:
+        // looking at the page is still worth doing.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [jobId])
+
+  const toggleFamily = useCallback((family: VerdictFamily) => {
+    setActive((current) => {
+      const next = new Set(current)
+      if (next.has(family)) next.delete(family)
+      else next.add(family)
+      // Turning the last one off would blank the page and read as a bug.
+      return next.size ? next : current
+    })
+  }, [])
   const leftRef = useRef<HTMLDivElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
   const syncing = useRef(false)
@@ -239,6 +346,9 @@ export function LayoutViewer({ data }: LayoutViewerProps) {
   }
 
   const currentPage = data.pages[pageIdx] ?? data.pages[0]
+  const selectedLine: LayoutLine | null = selectedId
+    ? (currentPage?.blocks.flatMap((b) => b.lines).find((l) => l.line_id === selectedId) ?? null)
+    : null
   const hasImage = !!currentPage.image_url
 
   return (
@@ -266,6 +376,60 @@ export function LayoutViewer({ data }: LayoutViewerProps) {
             <span className="font-mono text-[10px] text-amber-400 w-7 text-right">
               {Math.round(overlayOpacity * 100)}%
             </span>
+          </label>
+
+          {/* Verdict filter — dims, never hides. A line that copied its
+              neighbour only reads as wrong NEXT TO that neighbour, so the
+              context has to stay on the page. */}
+          <div className="flex items-center gap-1.5">
+            {(['kept', 'refused', 'silent'] as const).map((family) => {
+              const on = active.has(family)
+              return (
+                <button
+                  key={family}
+                  type="button"
+                  onClick={() => toggleFamily(family)}
+                  aria-pressed={on}
+                  title={`${FAMILY[family].label} — cliquer pour estomper`}
+                  className="font-mono text-[10px] uppercase tracking-wider rounded px-2 py-1
+                             border transition-opacity focus:outline-none focus:ring-1
+                             focus:ring-amber-400"
+                  style={{
+                    borderColor: FAMILY[family].stroke,
+                    color: on ? '#e2e8f0' : '#64748b',
+                    background: on ? FAMILY[family].fill : 'transparent',
+                    opacity: on ? 1 : 0.55,
+                  }}
+                >
+                  {FAMILY[family].label}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* IIIF service — full-resolution line crops, nothing stored */}
+          <label className="flex items-center gap-2">
+            <span className="font-mono text-[10px] text-slate-500 uppercase tracking-wider whitespace-nowrap">
+              IIIF
+            </span>
+            <input
+              type="url"
+              value={iiifService}
+              placeholder="https://…/iiif/image/v3/ark:/12148/…/f1"
+              onChange={(e) => {
+                setIiifService(e.target.value)
+                globalThis.localStorage?.setItem('saknussemm.iiif', e.target.value)
+              }}
+              className={`font-mono text-[11px] bg-slate-900 border rounded px-2 py-1 w-56
+                          text-slate-200 focus:outline-none focus:border-amber-500 ${
+                            iiifService && !iiifUsable ? 'border-red-500' : 'border-slate-600'
+                          }`}
+            />
+            {iiifService && !iiifUsable && (
+              <span className="font-mono text-[10px] text-red-400">
+                base du service, pas une image
+              </span>
+            )}
           </label>
 
           {/* Page selector */}
@@ -302,12 +466,50 @@ export function LayoutViewer({ data }: LayoutViewerProps) {
       {/* Dual panels with synchronised scroll */}
       <div className="grid grid-cols-2 divide-x divide-slate-700/40">
         <div ref={leftRef} onScroll={onScrollLeft} className="overflow-auto max-h-[60vh]">
-          <PagePanel page={currentPage} side="ocr" overlayOpacity={overlayOpacity} />
+          <PagePanel
+            page={currentPage}
+            side="ocr"
+            overlayOpacity={overlayOpacity}
+            active={active}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
         </div>
         <div ref={rightRef} onScroll={onScrollRight} className="overflow-auto max-h-[60vh]">
-          <PagePanel page={currentPage} side="corrected" overlayOpacity={overlayOpacity} />
+          <PagePanel
+            page={currentPage}
+            side="corrected"
+            overlayOpacity={overlayOpacity}
+            active={active}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
         </div>
       </div>
+
+      {/* Judgement panel — only with a job to persist against, and only once
+          a line is selected. A reviewer who cannot record a verdict produces
+          an impression; one who can produces the ground truth these corpora
+          do not ship. */}
+      {jobId && selectedLine && (
+        <div className="px-4 py-3 border-t border-slate-700/40">
+          <ReviewPanel
+            jobId={jobId}
+            pageId={currentPage.page_id}
+            line={selectedLine}
+            existing={reviews.get(lineKey(currentPage.page_id, selectedLine.line_id)) ?? null}
+            iiifService={iiifUsable ? iiifService : null}
+            onSaved={(review) =>
+              setReviews((current) => {
+                const next = new Map(current)
+                next.set(lineKey(review.page_id, review.line_id), review)
+                return next
+              })
+            }
+            onClose={() => setSelectedId(null)}
+          />
+        </div>
+      )}
 
       {/* Legend */}
       <div className="px-4 py-2.5 border-t border-slate-700/40 flex items-center gap-6 flex-wrap">

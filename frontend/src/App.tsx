@@ -493,7 +493,7 @@ export default function App() {
               Impossible de charger la mise en page (le serveur a échoué à plusieurs reprises).
             </p>
           )}
-          {layoutData && <LayoutViewer data={layoutData} />}
+          {layoutData && <LayoutViewer data={layoutData} jobId={jobId ?? undefined} />}
         </section>
       )}
 

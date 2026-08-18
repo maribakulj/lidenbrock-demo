@@ -13,12 +13,20 @@
 #        -o requirements-lock.txt requirements.in
 #   3. pytest
 #
-# NOTE: saknussemm is a sibling package in this monorepo, NOT listed here.
-# Install it separately before backend (so the cwd-relative path doesn't
-# bite us depending on where pip is run from):
+# NOTE: saknussemm is NOT listed here — it is installed separately, and it
+# must be installed WITH ITS VISION EXTRA. `packages/saknussemm` has not
+# existed since the library left this repository on 2026-08-16 and its tree was
+# flattened; the instruction below said otherwise for long enough that nobody
+# could have followed it.
 #
-#   pip install -e packages/saknussemm   # from the repo root
+#   pip install 'saknussemm[vision] @ git+https://github.com/maribakulj/saknussemm@main'
 #   pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+#
+# The `[vision]` extra is Pillow, and it is not optional for this backend:
+# `VisionEditProducer` crops each line from the page scan, and without Pillow
+# every vision job fails at the first crop with ModuleNotFoundError — measured,
+# not supposed. A text-only install is a backend that silently cannot run half
+# of what it offers.
 #
 # CI follows this two-step install. The Dockerfiles do too. See
 # CONTRIBUTING.md for the local-dev recipe.
