@@ -29,6 +29,19 @@ class JobStatus(str, Enum):
     #: line went through the provider" from "some lines silently kept
     #: their OCR text". COMPLETED now strictly means zero fallbacks.
     COMPLETED_WITH_FALLBACKS = "completed_with_fallbacks"
+    #: Terminal success where one or more SOURCE FILES are missing from the
+    #: output: the engine rewrote them, re-read them, found the artefact did
+    #: not carry what the run decided, and withheld them rather than hand
+    #: back bytes nobody vouched for.
+    #:
+    #: Its own state for the same reason `COMPLETED_WITH_FALLBACKS` has one,
+    #: and a stronger one. A fallen line kept its OCR text — the page still
+    #: ships. A withheld file is a page **absent from the download**, and a
+    #: job reporting plain `completed` would tell the user a volume is
+    #: complete when it is not. The engine refuses that mistake for callers
+    #: using its `write()`; this backend owns its writer, so it answers the
+    #: same question itself.
+    COMPLETED_WITH_WITHHELD_FILES = "completed_with_withheld_files"
     FAILED = "failed"
     #: Plan V2.2 — cooperative cancellation. CANCEL_REQUESTED is set by
     #: the cancel endpoint; the pipeline's `should_abort` probe trips
@@ -38,8 +51,19 @@ class JobStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-#: The two terminal states whose outputs are valid and downloadable.
-TERMINAL_SUCCESS_STATES = frozenset({JobStatus.COMPLETED, JobStatus.COMPLETED_WITH_FALLBACKS})
+#: The terminal states whose outputs are valid and downloadable.
+#:
+#: `COMPLETED_WITH_WITHHELD_FILES` belongs here: what it produced IS valid —
+#: every file present carries the run's decisions — it is simply not the
+#: whole set. Excluding it would make the missing page cost the good ones
+#: too, which is exactly the trade the engine stopped making.
+TERMINAL_SUCCESS_STATES = frozenset(
+    {
+        JobStatus.COMPLETED,
+        JobStatus.COMPLETED_WITH_FALLBACKS,
+        JobStatus.COMPLETED_WITH_WITHHELD_FILES,
+    }
+)
 
 
 class Provider(str, Enum):
@@ -95,6 +119,14 @@ class JobManifest(BaseModel):
     #: carries more than one ALTO. Untyped here so the schema layer stays
     #: free of the API layer's models.
     reviews: dict[str, dict] = Field(default_factory=dict)
+    #: Source files the engine withheld, mapped to why. Empty on a job whose
+    #: every file was delivered.
+    #:
+    #: Mirrored off `report.undeliverable_files` rather than read from it, so
+    #: a client can tell that a download is incomplete without parsing the §9
+    #: report — the same reason `fallbacks` is a field beside the report that
+    #: also contains it.
+    withheld_files: dict[str, str] = Field(default_factory=dict)
 
 
 __all__ = ["TERMINAL_SUCCESS_STATES", "JobManifest", "JobStatus", "Provider"]

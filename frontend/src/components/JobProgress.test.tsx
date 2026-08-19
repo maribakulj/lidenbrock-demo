@@ -36,6 +36,15 @@ describe('F24 — status badge covers every terminal state', () => {
     expect(el.textContent?.trim()).not.toBe('')
   })
 
+  it('renders a distinct label for completed_with_withheld_files', () => {
+    // Reusing the fallbacks label would tell the reader some lines kept
+    // their OCR text, when what happened is that a whole page is absent.
+    const el = badge('completed_with_withheld_files')
+    expect(el.className).not.toContain('undefined')
+    expect(el.textContent).toMatch(/withheld/i)
+    expect(el.textContent).not.toMatch(/fallback/i)
+  })
+
   it('degrades gracefully for an unknown status', () => {
     const el = badge('some_future_status' as JobStatus)
     expect(el.className).not.toContain('undefined')

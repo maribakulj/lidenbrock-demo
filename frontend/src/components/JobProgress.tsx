@@ -14,6 +14,9 @@ const STATUS_COLORS: Record<string, string> = {
   // literal `undefined` class before this key existed. Amber signals
   // "done, but review the fallbacks".
   completed_with_fallbacks: 'text-amber-300',
+  // A missing page is worse than a fallen line — the page is not there at
+  // all — so it reads hotter than amber without claiming the run failed.
+  completed_with_withheld_files: 'text-orange-400',
   failed: 'text-red-400',
   cancel_requested: 'text-amber-400',
   cancelled: 'text-slate-400',
@@ -25,6 +28,7 @@ const STATUS_LABELS: Record<string, string> = {
   running: 'RUNNING',
   completed: 'COMPLETED',
   completed_with_fallbacks: 'COMPLETED (WITH FALLBACKS)',
+  completed_with_withheld_files: 'COMPLETED (FILES WITHHELD)',
   failed: 'FAILED',
   cancel_requested: 'CANCELLING…',
   cancelled: 'CANCELLED',

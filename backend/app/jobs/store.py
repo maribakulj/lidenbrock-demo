@@ -143,6 +143,7 @@ class JobStore:
         images: dict[str, str] | None = None,
         report: CorrectionReport | None = None,
         token_hash: str | None = None,
+        withheld_files: dict[str, str] | None = None,
     ) -> None:
         """Update mutable fields on the job manifest. None means "do not touch".
 
@@ -157,6 +158,12 @@ class JobStore:
                 return
             if status is not None:
                 job.status = status
+            # `None` means "do not touch" here as everywhere, so a run that
+            # withheld nothing passes `{}` and clears any earlier value —
+            # a job re-run after a fix must not keep yesterday's missing
+            # pages in its manifest.
+            if withheld_files is not None:
+                job.withheld_files = withheld_files
             if document_manifest is not None:
                 job.document_manifest = document_manifest
             if total_lines is not None:

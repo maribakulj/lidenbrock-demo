@@ -28,10 +28,21 @@ function appendLog(prev: LogEntry[], entry: LogEntry): LogEntry[] {
   return next.length > MAX_LOGS ? next.slice(next.length - MAX_LOGS) : next
 }
 
-/** Terminal job states — the stream/poller never restarts after these. */
+/**
+ * Terminal job states — the stream/poller never restarts after these.
+ *
+ * A state missing from this list is not a cosmetic gap: the stream never
+ * closes, the poller keeps going and the job appears to run forever. That is
+ * what `completed_with_withheld_files` would have done on the day the engine
+ * started withholding a file instead of failing the whole run.
+ */
 function isTerminalStatus(s: JobStatus | null): boolean {
   return (
-    s === 'completed' || s === 'completed_with_fallbacks' || s === 'failed' || s === 'cancelled'
+    s === 'completed' ||
+    s === 'completed_with_fallbacks' ||
+    s === 'completed_with_withheld_files' ||
+    s === 'failed' ||
+    s === 'cancelled'
   )
 }
 
@@ -297,6 +308,20 @@ export function useJobStream(jobId: string | null): UseJobStreamReturn {
               ),
             ),
           )
+          if (terminal === 'completed_with_withheld_files') {
+            setLogs((l) =>
+              appendLog(
+                l,
+                makeLog(
+                  'warning',
+                  'Incomplete output — one or more source files were WITHHELD: ' +
+                    'their rewritten XML did not carry what the run decided, so ' +
+                    'the engine refused to hand them back. The files you can ' +
+                    'download are faithful, but they are not the whole set.',
+                ),
+              ),
+            )
+          }
           if (terminal === 'completed_with_fallbacks') {
             const n = ev.fallbacks ?? 0
             setLogs((l) =>

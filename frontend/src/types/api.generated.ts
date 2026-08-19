@@ -385,6 +385,7 @@ export interface components {
       | 'running'
       | 'completed'
       | 'completed_with_fallbacks'
+      | 'completed_with_withheld_files'
       | 'failed'
       | 'cancel_requested'
       | 'cancelled'
