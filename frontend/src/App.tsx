@@ -61,7 +61,14 @@ export default function App() {
   const { logs, progress, status, isRunning, streamState, finalStats, reconnect } =
     useJobStream(jobId)
 
-  const isDone = status === 'completed' || status === 'completed_with_fallbacks'
+  // `completed_with_withheld_files` is done too: what it produced IS
+  // downloadable — every file present carries the run's decisions — it is
+  // simply not the whole set. Leaving it out would hide the good files
+  // because one was missing, which is the trade the engine stopped making.
+  const isDone =
+    status === 'completed' ||
+    status === 'completed_with_fallbacks' ||
+    status === 'completed_with_withheld_files'
   const isFailed = status === 'failed'
   const isCancelled = status === 'cancelled'
   // Plan V2.2 — true between the user's click and the server's verdict.

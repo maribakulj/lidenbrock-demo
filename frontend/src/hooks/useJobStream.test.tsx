@@ -490,6 +490,28 @@ describe('event lifecycle', () => {
     ).toBe(true)
   })
 
+  it('treats completed_with_withheld_files as TERMINAL and says what is missing', () => {
+    // The dangerous half is `isRunning`. A terminal state missing from the
+    // hook's list does not merely lack a label: the stream never closes and
+    // the job appears to run forever, which is what would have happened the
+    // day the engine started withholding a file instead of failing the run.
+    const { result } = renderHook(() => useJobStream('job-1'))
+    act(() => {
+      FakeEventSource.last().dispatch('completed', {
+        total_lines: 4,
+        lines_modified: 1,
+        hyphen_pairs_total: 0,
+        duration_seconds: 1,
+        status: 'completed_with_withheld_files',
+      })
+    })
+    expect(result.current.status).toBe('completed_with_withheld_files')
+    expect(result.current.isRunning).toBe(false)
+    expect(
+      result.current.logs.some((l) => l.type === 'warning' && /withheld/i.test(l.message)),
+    ).toBe(true)
+  })
+
   it('survives a synthetic terminal event with a partial payload', () => {
     const { result } = renderHook(() => useJobStream('job-1'))
     act(() => {

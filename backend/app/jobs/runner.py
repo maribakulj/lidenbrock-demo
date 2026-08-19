@@ -259,17 +259,27 @@ class JobRunner:
             # 20-line chunk is 20 uncorrected lines, and a guard-rejected
             # line counts even when no chunk ever failed — the UI renders
             # this number as "N line(s) fell back".
-            terminal = (
-                JobStatus.COMPLETED_WITH_FALLBACKS
-                if result.fallback_lines > 0
-                else JobStatus.COMPLETED
-            )
+            #
+            # A WITHHELD FILE outranks a fallen line. Both are degradations,
+            # but a fallen line still ships its page; a withheld file is a
+            # page absent from the download, and reporting that as plain
+            # `completed` would tell the user a volume is complete when it is
+            # not. The engine refuses that for callers using its `write()`;
+            # this backend stages through its own writer, so the refusal is
+            # made here instead.
+            if result.undeliverable_files:
+                terminal = JobStatus.COMPLETED_WITH_WITHHELD_FILES
+            elif result.fallback_lines > 0:
+                terminal = JobStatus.COMPLETED_WITH_FALLBACKS
+            else:
+                terminal = JobStatus.COMPLETED
             self.job_store.update_job(
                 job_id,
                 status=terminal,
                 chunks_total=total_chunks,
                 lines_modified=lines_modified,
                 duration_seconds=elapsed,
+                withheld_files=result.undeliverable_files,
             )
 
             # Job-end reconcile_stats observability event — emitted just

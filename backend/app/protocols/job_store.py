@@ -45,6 +45,7 @@ class JobStore(Protocol):
         report: Any | None = None,
         reviews: dict[str, Any] | None = None,
         token_hash: str | None = None,
+        withheld_files: dict[str, str] | None = None,
     ) -> None: ...
 
     def delete_job(self, job_id: str) -> None: ...
